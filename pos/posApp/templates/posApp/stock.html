@@ -1,0 +1,286 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card py-2 d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">📦 Stock Management</h4>
+    </div>
+</div>
+
+<!-- Inline alert container -->
+<div id="alert-container" class="mt-3"></div>
+
+<!-- Branch filter for superusers -->
+{% if branches %}
+<div class="mb-3">
+    <label for="branch-select" class="form-label"><strong>Filter by Branch:</strong></label>
+    <select id="branch-select" class="form-select w-25">
+        <option value="">All Branches</option>
+        {% for branch in branches %}
+            <option value="{{ branch.id }}" {% if branch == selected_branch %}selected{% endif %}>
+                {{ branch.name }}
+            </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+<!-- Bulk Upload Form -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12 mt-3">
+    <div class="mdc-card p-3">
+        <h5>📁 Bulk Stock & Price Update</h5>
+        <form id="bulk-stock-form" method="post" enctype="multipart/form-data" action="{% url 'bulk_stock_upload' %}">
+            {% csrf_token %}
+            <div class="d-flex align-items-end justify-content-between gap-2">
+                <div class="mb-0">
+                    <label for="bulk-file" class="form-label mb-1">Upload Excel File</label>
+                    <input type="file" class="form-control mb-2" id="bulk-file" name="file" accept=".xls,.xlsx" required>
+                    <button type="submit" class="btn btn-success">Upload & Update</button>
+                    <small class="text-muted mt-1">Excel columns: Product, Branch (optional), Purchasing Price, Cost Price, Stock</small>
+                </div>
+
+                <div class="d-flex align-items-end">
+                    <a href="{% url 'download_stock_excel' %}" class="btn btn-success">📥 Export</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Product Table -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12 mt-3">
+    <div class="mdc-card">
+        <div class="table-responsive">
+            <table class="table pos-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+						<th>Selling Price</th>
+                        <th>Purchasing Price</th>
+                        
+                        <th>Current Stock</th>
+                        <th>Tax Type</th>
+                        <th>Supplier</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for product in products %}
+                    <tr id="product-row-{{ product.id }}">
+                        <td>{{ product.name }}</td>
+                        <td id="price-{{ product.id }}">{{ product.price }}</td>
+                        <td id="cprice-{{ product.id }}">{{ product.cprice }}</td>
+                        <td id="current-stock-{{ product.id }}">{{ product.stock }}</td>
+
+                        <!-- Tax column -->
+                        <td>
+                            {% if product.tax_type == "inclusive" %}
+                                <span class="badge bg-success">Inclusive ({{ product.inclusive_tax }}%)</span>
+                            {% elif product.tax_type == "exclusive" %}
+                                <span class="badge bg-info text-dark">Exclusive ({{ product.exclusive_tax }}%)</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No Tax</span>
+                            {% endif %}
+                        </td>
+
+                        <td id="supplier-{{ product.id }}">
+                            {% if product.supplier %}
+                                {{ product.supplier.name }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openStockModal({{ product.id }})">
+                                Update Stock
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No products available</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Update Modal -->
+<div class="modal fade" id="stockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="stock-modal-body"></div>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+function showAlert(message, type='success', duration=3000) {
+    const alertHTML = `<div class="alert alert-${type} d-inline-block" style="font-weight:500; margin-bottom:10px;">${message}</div>`;
+    $('#alert-container').html(alertHTML);
+    if(duration > 0){
+        setTimeout(() => { $('#alert-container').html(''); }, duration);
+    }
+}
+
+// Branch filtering
+$('#branch-select').on('change', function(){
+    const branchId = $(this).val();
+    let url = "{% url 'stock_page' %}";
+    if(branchId){ url += `?branch=${branchId}`; }
+    window.location.href = url;
+});
+
+// Bulk upload
+$('#bulk-stock-form').on('submit', function(e){
+    e.preventDefault();
+    const formData = new FormData(this);
+    start_loader();
+
+    $.ajax({
+        url: $(this).attr('action'),
+        method: $(this).attr('method'),
+        data: formData,
+        contentType: false,
+        processData: false,
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        success: function(resp){
+            if(resp.status === 'success'){
+                showAlert(resp.msg || "✅ Bulk update successful", "success");
+                setTimeout(()=> location.reload(), 1500);
+            } else {
+                showAlert(resp.msg || "❌ Bulk update failed", "danger", 5000);
+            }
+            end_loader();
+        },
+        error: function(err){
+            console.error(err);
+            showAlert("❌ Error during bulk update", "danger", 5000);
+            end_loader();
+        }
+    });
+});
+
+// Open modal
+function openStockModal(productId) {
+    start_loader();
+    let url = "{% url 'stock_modal_form' %}?id=" + productId;
+    {% if selected_branch %} url += "&branch={{ selected_branch.id }}"; {% endif %}
+
+    $.ajax({
+        url: url,
+        method: "GET",
+        success: function(resp) {
+            $('#stock-modal-body').html(resp);
+
+            // Inject tax fields if not already present
+            if (!$('#tax-type').length) {
+                const taxFields = `
+                    <div class="mb-3">
+                        <label for="tax-type" class="form-label">Tax Type</label>
+                        <select id="tax-type" name="tax_type" class="form-select">
+                            <option value="none">No Tax</option>
+                            <option value="inclusive">Inclusive</option>
+                            <option value="exclusive">Exclusive</option>
+                        </select>
+                    </div>
+                    <div id="inclusive-tax-field" class="mb-3" style="display:none;">
+                        <label for="inclusive-tax" class="form-label">Inclusive Tax (%)</label>
+                        <input type="number" step="0.01" name="inclusive_tax" id="inclusive-tax" class="form-control" placeholder="0.00">
+                    </div>
+                    <div id="exclusive-tax-field" class="mb-3" style="display:none;">
+                        <label for="exclusive-tax" class="form-label">Exclusive Tax (%)</label>
+                        <input type="number" step="0.01" name="exclusive_tax" id="exclusive-tax" class="form-control" placeholder="0.00">
+                    </div>
+                `;
+                $('#stock-form').prepend(taxFields);
+            }
+
+            // Dynamic show/hide
+            $(document).on("change", "#tax-type", function() {
+                const val = $(this).val();
+                $("#inclusive-tax-field").toggle(val === "inclusive");
+                $("#exclusive-tax-field").toggle(val === "exclusive");
+            });
+
+            // Payment method and discount logic
+            const $submitBtn = $('#stock-form button[type="submit"]');
+            if (!$('#payment-method').length) {
+                $(`
+                    <div class="mb-3">
+                        <label for="payment-method" class="form-label">Payment Method</label>
+                        <select id="payment-method" name="payment_method" class="form-select" required>
+                            <option value="cash">Cash</option>
+                            <option value="credit">Credit</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discount-percent" class="form-label">Discount %</label>
+                        <input type="number" id="discount-percent" name="discount_percent" class="form-control" placeholder="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="total-cost" class="form-label">Total Cost After Discount</label>
+                        <input type="text" id="total-cost" class="form-control" readonly>
+                    </div>
+                `).insertBefore($submitBtn);
+            }
+
+            const myModal = new bootstrap.Modal(document.getElementById('stockModal'), { backdrop: 'static', keyboard: false });
+            myModal.show();
+
+            $('#stock-form').on('input', '#id_add_stock, #id_cprice, #discount-percent', function() {
+                const qty = parseFloat($('#id_add_stock').val()) || 0;
+                const cost = parseFloat($('#id_cprice').val()) || 0;
+                const discountPercent = parseFloat($('#discount-percent').val()) || 0;
+                let total = qty * cost;
+                if(discountPercent > 0) total = total * (1 - discountPercent / 100);
+                $('#total-cost').val(total.toFixed(2));
+            });
+
+            $('#stock-form').off('submit').on('submit', function(e){
+                e.preventDefault();
+                start_loader();
+                const $form = $(this);
+
+                $.ajax({
+                    headers: { "X-CSRFToken": '{{ csrf_token }}' },
+                    url: $form.attr('action'),
+                    method: $form.attr('method'),
+                    data: $form.serialize(),
+                    dataType: 'json',
+                    success: function(resp) {
+                        if(resp.status === 'success'){
+                            const $row = $("#product-row-" + resp.product_id);
+                            $row.find("#current-stock-" + resp.product_id).text(resp.new_stock);
+                            showAlert(resp.msg || "✅ Stock updated successfully!", "success");
+                            myModal.hide();
+                        } else {
+                            showAlert(resp.msg || "❌ Failed to update stock", "danger");
+                        }
+                        end_loader();
+                    },
+                    error: function(err) {
+                        console.error(err);
+                        showAlert("❌ An error occurred", "danger");
+                        end_loader();
+                    }
+                });
+            });
+        },
+        error: function(err){
+            console.error(err);
+            showAlert("❌ Failed to load stock form", "danger");
+            end_loader();
+        },
+        complete: function(){ end_loader(); }
+    });
+}
+</script>
+{% endblock ScriptBlock %}

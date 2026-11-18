@@ -1,0 +1,68 @@
+{% load l10n %}
+<form id="stock-form" method="POST" action="{% url 'update_stock' %}">
+  {% csrf_token %}
+  <input type="hidden" name="id" value="{{ product.id }}">
+
+  <!-- Tax: filled with the product's current tax so saving does not wipe it -->
+  <div class="mb-3">
+    <label for="tax-type" class="form-label">Tax Type</label>
+    <select id="tax-type" name="tax_type" class="form-select">
+      <option value="none" {% if product.tax_type != "inclusive" and product.tax_type != "exclusive" %}selected{% endif %}>No Tax</option>
+      <option value="inclusive" {% if product.tax_type == "inclusive" %}selected{% endif %}>Inclusive</option>
+      <option value="exclusive" {% if product.tax_type == "exclusive" %}selected{% endif %}>Exclusive</option>
+    </select>
+  </div>
+  <div id="inclusive-tax-field" class="mb-3" style="{% if product.tax_type != 'inclusive' %}display:none;{% endif %}">
+    <label for="inclusive-tax" class="form-label">Inclusive Tax (%)</label>
+    <input type="number" step="0.01" name="inclusive_tax" id="inclusive-tax" class="form-control" placeholder="0.00" value="{{ product.inclusive_tax|unlocalize }}">
+  </div>
+  <div id="exclusive-tax-field" class="mb-3" style="{% if product.tax_type != 'exclusive' %}display:none;{% endif %}">
+    <label for="exclusive-tax" class="form-label">Exclusive Tax (%)</label>
+    <input type="number" step="0.01" name="exclusive_tax" id="exclusive-tax" class="form-control" placeholder="0.00" value="{{ product.exclusive_tax|unlocalize }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="id_price" class="form-label">Selling Price</label>
+    <input type="number" name="price" id="id_price" class="form-control" step="0.01" value="{{ product.price|unlocalize }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="id_cprice" class="form-label">Cost Price</label>
+    <input type="number" name="cprice" id="id_cprice" class="form-control" step="0.01" value="{{ product.cprice|unlocalize }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="id_add_stock" class="form-label">Add Stock <small class="text-muted">(currently {{ product.stock }})</small></label>
+    <input type="number" name="add_stock" id="id_add_stock" class="form-control" placeholder="0" value="0" min="0" step="1">
+  </div>
+
+  <div class="mb-3">
+    <label for="supplier" class="form-label">Supplier</label>
+    <select name="supplier_id" id="supplier" class="form-control">
+      <option value="">-- Select Supplier --</option>
+      {% for supplier in suppliers %}
+        <option value="{{ supplier.id }}" {% if product.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="payment-method" class="form-label">Payment Method</label>
+    <select id="payment-method" name="payment_method" class="form-select" required>
+      <option value="cash" selected>Cash</option>
+      <option value="credit">Credit</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="discount-percent" class="form-label">Discount %</label>
+    <input type="number" id="discount-percent" name="discount_percent" class="form-control" placeholder="0">
+  </div>
+  <div class="mb-3">
+    <label for="total-cost" class="form-label">Total Cost After Discount</label>
+    <input type="text" id="total-cost" class="form-control" readonly>
+  </div>
+
+  <div class="text-end mt-3">
+    <button type="submit" class="btn btn-primary">Update Stock</button>
+  </div>
+</form>

@@ -1,0 +1,274 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .sheet { max-width: 760px; margin: 0 auto 24px; font-size: 1rem; }
+  .sheet td { padding: 5px 10px; }
+  .sheet .in  { width: 150px; text-align: right; white-space: nowrap; }
+  .sheet .out { width: 160px; text-align: right; white-space: nowrap; }
+  .sheet .ind  { padding-left: 34px; }
+  .sheet .ind2 { padding-left: 34px; color: #8a90a8; font-size: .85rem; }
+  .sheet .ind3 { padding-left: 58px; }
+  .sheet .hdr td { font-weight: 600; padding-top: 14px; }
+  .sheet .rule { border-top: 1px solid #3d4468; }
+  .sheet .strong td { font-weight: 700; }
+  .sheet .final .out { border-top: 1px solid #3d4468; border-bottom: 3px double #3d4468; font-size: 1.15rem; }
+  .sheet .src { color: #8a90a8; font-size: .78rem; font-weight: 400; }
+  .sheet .breakdown td { color: #5d6482; font-size: .92rem; }
+  .memo { max-width: 760px; margin: 0 auto 24px; font-size: .9rem; color: #8a90a8; }
+  @media print { .no-print { display: none !important; } }
+</style>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+<div class="mdc-card p-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="card-title mb-0">Income Statement</h4>
+      <small class="text-muted">{{ branch_name }} &middot; {{ start_date }} to {{ end_date }} &middot; all amounts in USD</small>
+    </div>
+    <button class="btn btn-secondary btn-sm no-print" onclick="window.print()">Print</button>
+  </div>
+
+  <!-- FILTER -->
+  <form method="get" class="row g-2 align-items-end mb-3 no-print">
+    {% if all_branches %}
+    <div class="col-md-3">
+      <label class="form-label">Branch</label>
+      <select name="branch_id" class="form-select">
+        <option value="">All branches</option>
+        {% for b in all_branches %}
+        <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="col-md-3">
+      <label class="form-label">From</label>
+      <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">To</label>
+      <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary">Show</button>
+    </div>
+  </form>
+
+  {% for w in s.warnings %}
+  <div class="alert alert-warning py-2">{{ w }}</div>
+  {% endfor %}
+
+  <!-- STATEMENT (same layout as the handwritten sheet) -->
+  <table class="sheet">
+    <tbody>
+      <tr class="strong">
+        <td>Sales</td><td class="in"></td>
+        <td class="out">{{ s.gross_sales|floatformat:2|intcomma }}</td>
+      </tr>
+      <tr>
+        <td>Less: Sales return</td><td class="in"></td>
+        <td class="out">({{ s.total_returns|floatformat:2|intcomma }})</td>
+      </tr>
+      <tr class="strong">
+        <td>Net sales</td><td class="in"></td>
+        <td class="out rule">{{ s.net_sales|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <tr class="hdr"><td colspan="3">Less: Cost of sales</td></tr>
+      <tr>
+        <td class="ind">Opening stock <span class="src">({{ s.opening_source }})</span></td>
+        <td class="in">{{ s.opening_stock|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      <tr>
+        <td class="ind">Purchases</td>
+        <td class="in">{{ s.purchases_total|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      <tr>
+        <td class="ind"></td>
+        <td class="in rule">{{ s.goods_available|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      <tr>
+        <td class="ind">Less: Closing stock <span class="src">({{ s.closing_source }})</span></td>
+        <td class="in">({{ s.closing_stock|floatformat:2|intcomma }})</td>
+        <td class="out">{{ s.cogs|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <!-- what the cost of sales is made up of -->
+      <tr class="breakdown"><td class="ind2" colspan="3">Cost of sales is made up of:</td></tr>
+      <tr class="breakdown">
+        <td class="ind3">Goods sold (at cost)</td>
+        <td class="in">{{ s.goods_sold_cost|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      <tr class="breakdown">
+        <td class="ind3">Breakage</td>
+        <td class="in">{{ s.breakage_total|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      <tr class="breakdown">
+        <td class="ind3">Shortage</td>
+        <td class="in">{{ s.shortage_total|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      {% if s.other_difference != 0 %}
+      <tr class="breakdown">
+        <td class="ind3">Other stock difference <span class="src">(not recorded)</span></td>
+        <td class="in">{{ s.other_difference|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      {% endif %}
+
+      <tr class="strong">
+        <td>Gross profit <span class="src">({{ s.gross_margin|floatformat:1 }}% margin)</span></td><td class="in"></td>
+        <td class="out rule">{{ s.gross_profit|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <tr class="hdr"><td colspan="3">Less: Expenses</td></tr>
+      {% if s.fixed_lines %}
+      <tr><td class="ind2" colspan="3">Fixed</td></tr>
+      {% for name, amount in s.fixed_lines %}
+      <tr>
+        <td class="ind">{{ name }}</td>
+        <td class="in">{{ amount|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+      {% if s.variable_lines %}
+      <tr><td class="ind2" colspan="3">Variable (V.E)</td></tr>
+      {% for name, amount in s.variable_lines %}
+      <tr>
+        <td class="ind">V.E {{ name }}</td>
+        <td class="in">{{ amount|floatformat:2|intcomma }}</td><td class="out"></td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+      {% if not s.fixed_lines and not s.variable_lines %}
+      <tr><td class="ind2" colspan="3">No expenses recorded</td></tr>
+      {% endif %}
+      <tr class="strong">
+        <td>Total expenses</td><td class="in"></td>
+        <td class="out rule">({{ s.expenses_total|floatformat:2|intcomma }})</td>
+      </tr>
+
+      <tr class="strong final">
+        <td>{% if s.net_profit < 0 %}Net loss{% else %}Net profit{% endif %}</td><td class="in"></td>
+        <td class="out {% if s.net_profit < 0 %}text-danger{% endif %}">{{ s.net_profit|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <!-- break-even -->
+            {% if s.break_even %}
+      <tr><td class="ind2" colspan="3">
+        Break Even For these {{ s.period_days }} day{{ s.period_days|pluralize }}: about
+        ${{ s.break_even_daily|floatformat:2|intcomma }} a day, or
+        ${{ s.break_even_weekly|floatformat:2|intcomma }} a week.
+      </td></tr>
+      {% else %}
+      <tr><td class="ind2" colspan="3">{{ s.break_even_note }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div class="memo">
+    Contribution margin: ${{ s.contribution|floatformat:2|intcomma }} ({{ s.cm_ratio|floatformat:1 }}% of net sales)
+    &middot; Fixed expenses: ${{ s.fixed_total|floatformat:2|intcomma }}
+    &middot; Variable expenses: ${{ s.variable_total|floatformat:2|intcomma }}
+    &middot; Stock losses (breakage, shortage, other): ${{ s.stock_losses_total|floatformat:2|intcomma }}
+  </div>
+
+  <!-- ENTER FIGURES -->
+  <div class="no-print">
+    <h5 class="mt-4">Enter figures</h5>
+    <p class="text-muted small mb-2">
+      Fixed costs (rent, salaries), variable costs (food, fuel), extra purchases, opening stock
+       .The date decides which period an entry belongs to.
+    </p>
+    <form id="entryForm" class="row g-2 align-items-end">
+      <input type="hidden" name="branch_id" value="{{ selected_branch_id }}">
+      <div class="col-md-2">
+        <label class="form-label">Type</label>
+        <select name="entry_type" class="form-select" required>
+          {% for value, label in entry_types %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Name</label>
+        <input type="text" name="name" list="nameSuggestions" class="form-control" placeholder="e.g. Rent, Food, Fuel">
+        <datalist id="nameSuggestions">
+          <option value="Rent"><option value="Salaries"><option value="Electricity">
+          <option value="Water"><option value="Food"><option value="Fuel"><option value="Packaging"><option value="Transport">
+        </datalist>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Amount</label>
+        <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label">Currency</label>
+        <select name="currency" class="form-select">
+          {% for c in currencies %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Date</label>
+        <input type="date" name="date" value="{{ end_date }}" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Add</button>
+      </div>
+      <div class="col-12">
+        <input type="text" name="note" class="form-control" maxlength="255" placeholder="Note (optional)">
+      </div>
+    </form>
+
+    <h6 class="mt-4">Entries in this period</h6>
+    <table class="table table-sm">
+      <thead>
+        <tr><th>Date</th><th>Type</th><th>Name</th><th class="text-end">Amount</th><th class="text-end">USD</th><th>By</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr data-id="{{ e.id }}">
+          <td>{{ e.date|date:"d M Y" }}</td>
+          <td>{{ e.get_entry_type_display }}</td>
+          <td>{{ e.name }}{% if e.note %}<br><small class="text-muted">{{ e.note }}</small>{% endif %}</td>
+          <td class="text-end">{{ e.currency }} {{ e.amount|floatformat:2|intcomma }}</td>
+          <td class="text-end">${{ e.amount_usd|floatformat:2|intcomma }}</td>
+          <td>{{ e.created_by.username|default:"" }}</td>
+          <td><button class="btn btn-danger btn-sm deleteEntryBtn">Delete</button></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted">No entries in this period</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+$(function(){
+  $.ajaxSetup({ headers: { "X-CSRFToken": "{{ csrf_token }}" } });
+
+  $('#entryForm').submit(function(e){
+    e.preventDefault();
+    $.post("{% url 'add-income-entry' %}", $(this).serialize(), function(resp){
+      if (resp.status === 'success') { location.reload(); }
+      else { alert(resp.msg || resp.message); }
+    });
+  });
+
+  $('.deleteEntryBtn').click(function(){
+    var tr = $(this).closest('tr');
+    if (!confirm("Delete this entry?")) return;
+    $.post("{% url 'delete-income-entry' %}", { id: tr.data('id') }, function(resp){
+      if (resp.status === 'success') { location.reload(); }
+      else { alert(resp.msg || resp.message); }
+    });
+  });
+});
+</script>
+{% endblock ScriptBlock %}

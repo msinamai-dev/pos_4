@@ -1,0 +1,97 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">  Printer Settings</h4>
+    </div>
+  </div>
+</div>
+
+<div id="alert-box"></div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <form method="POST">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label">Printer</label>
+        <select name="printer_name" id="printer_name" class="form-select">
+          <option value="">Windows default printer</option>
+          {% if settings.printer_name and settings.printer_name not in printers %}
+            <option value="{{ settings.printer_name }}" selected>{{ settings.printer_name }} (not found right now)</option>
+          {% endif %}
+          {% for p in printers %}
+            <option value="{{ p }}" {% if settings.printer_name == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+        <small class="text-muted">
+          Pair the printer with this PC first, then reload this page.
+        </small>
+        {% if not printers %}
+          <div class="text-danger small mt-1">
+            No printers or COM ports found. Check that the printer is paired and switched on,
+            and that <code>pywin32</code> and <code>pyserial</code> are installed.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Paper Size</label>
+        <select name="paper_size" class="form-select">
+          <option value="A4" {% if settings.paper_size == 'A4' %}selected{% endif %}>A4</option>
+          <option value="80" {% if settings.paper_size == '80' %}selected{% endif %}>Thermal 80mm</option>
+          <option value="58" {% if settings.paper_size == '58' %}selected{% endif %}>Thermal 58mm</option>
+        </select>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="auto_print" id="auto_print" {% if settings.auto_print %}checked{% endif %}>
+        <label class="form-check-label" for="auto_print">Auto-print after sale</label>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Top Margin (mm)</label>
+          <input type="number" class="form-control" name="margin_top" value="{{ settings.margin_top|default_if_none:'5' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Bottom Margin (mm)</label>
+          <input type="number" class="form-control" name="margin_bottom" value="{{ settings.margin_bottom|default_if_none:'5' }}">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Header Text</label>
+        <input type="text" class="form-control" name="header_text" value="{{ settings.header_text|default_if_none:'' }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Footer Text</label>
+        <input type="text" class="form-control" name="footer_text" value="{{ settings.footer_text|default_if_none:'' }}">
+      </div>
+
+      <button class="btn btn-primary">Save Settings</button>
+      <button type="button" class="btn btn-secondary" onclick="testPrinter()">Print test page</button>
+      <small class="text-muted d-block mt-2">The test page uses the saved settings, so press Save Settings first.</small>
+    </form>
+  </div>
+</div>
+
+<script>
+function testPrinter() {
+  fetch("{% url 'printer-test' %}", {
+    method: "POST",
+    headers: {"X-CSRFToken": "{{ csrf_token }}"}
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (d) {
+    alert(d.status === "success" ? "Test page sent to the printer." : (d.msg || "Printing failed."));
+  })
+  .catch(function () { alert("Could not reach the server."); });
+}
+</script>
+{% endblock pageContent %}

@@ -1,0 +1,87 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+
+<!-- Page header -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-0">Edit User &ndash; {{ user_obj.username }}</h4>
+        <p class="mb-0 small">Change this user's branch, role and extra permissions.</p>
+      </div>
+      <a href="{% url 'user-list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to users</a>
+    </div>
+  </div>
+</div>
+
+{% if messages %}
+<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if profile_form.errors %}
+<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+  <div class="alert alert-danger">
+    {% for field, errs in profile_form.errors.items %}
+      <div>{{ field }}: {{ errs|join:", " }}</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card pos-form-card">
+    <form method="POST" id="edit-user" class="pos-form">
+      {% csrf_token %}
+
+      <!-- Account (read only) -->
+      <section class="pos-form-section">
+        <h5 class="pos-form-section-title"><span class="pos-ico"><i class="bi bi-person-badge"></i></span> Account</h5>
+        <div class="pos-form-grid">
+          <div class="pos-field">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" value="{{ user_obj.username }}" disabled>
+          </div>
+          <div class="pos-field">
+            <label class="form-label">Email</label>
+            <input type="text" class="form-control" value="{{ user_obj.email }}" disabled>
+          </div>
+        </div>
+      </section>
+
+      <!-- Profile, location and role -->
+      <section class="pos-form-section">
+        <h5 class="pos-form-section-title"><span class="pos-ico"><i class="bi bi-shop"></i></span> Profile, location &amp; role</h5>
+        <div class="pos-form-grid">
+          {% for field in profile_form %}
+            {% if field.name != "permissions" %}
+              <div class="pos-field">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Extra permissions (grouped) -->
+      {% include "posApp/_permission_picker.html" %}
+
+      <div class="pos-form-actions">
+        <a href="{% url 'user-list' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+{% include "posApp/_permission_picker_js.html" %}
+{% endblock ScriptBlock %}

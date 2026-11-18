@@ -1,0 +1,61 @@
+<form id="supplier-form" method="POST" action="{% url 'add_supplier' %}" novalidate>
+  {% csrf_token %}
+  {% if supplier %}
+    <input type="hidden" name="id" value="{{ supplier.id }}">
+  {% endif %}
+
+  <!-- Show Django Messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Branch Dropdown for Superuser -->
+  {% if request.user.is_superuser %}
+  <div class="mb-3">
+    <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
+    <select name="branch_id" id="branch_id" class="form-select form-select-sm rounded-0" required>
+      <option value="">Select Branch</option>
+      {% for b in branches %}
+        <option value="{{ b.id }}"
+          {% if supplier and supplier.branch.id == b.id %}selected{% endif %}
+          {% if selected_branch and selected_branch.id == b.id %}selected{% endif %}
+        >{{ b.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="supplier-name" class="form-label">Name <span class="text-danger">*</span></label>
+    <input type="text" id="supplier-name" name="name" class="form-control form-control-sm rounded-0" required
+           value="{{ supplier.name|default_if_none:'' }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="supplier-contact" class="form-label">Contact <span class="text-danger">*</span></label>
+    <input type="text" id="supplier-contact" name="contact" class="form-control form-control-sm rounded-0" required
+           value="{{ supplier.contact|default_if_none:'' }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="supplier-email" class="form-label">Email</label>
+    <input type="email" id="supplier-email" name="email" class="form-control form-control-sm rounded-0"
+           value="{{ supplier.email|default_if_none:'' }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="supplier-address" class="form-label">Address</label>
+    <textarea id="supplier-address" name="address" class="form-control form-control-sm rounded-0" rows="3">{{ supplier.address|default_if_none:'' }}</textarea>
+  </div>
+
+  <div class="d-flex justify-content-end">
+    <button type="submit" class="btn btn-primary btn-sm">
+      {% if supplier %} Update Supplier {% else %} Save Supplier {% endif %}
+    </button>
+  </div>
+</form>

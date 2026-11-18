@@ -1,0 +1,173 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">🧾 Receipt Format {% if branch %}— {{ branch.name }}{% endif %}</h4>
+    </div>
+  </div>
+</div>
+
+<div id="alert-box"></div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label">Logo</label>
+        {% if settings.logo %}
+          <div class="mb-2">
+            <img src="{{ settings.logo.url }}" id="current-logo" style="max-height:60px; border:1px solid #ddd; border-radius:4px; padding:4px;">
+          </div>
+        {% endif %}
+        <input type="file" class="form-control" name="logo" id="id_logo" accept="image/*">
+        <small class="text-muted">Leave blank to keep the current logo. PNG with a transparent background prints best.</small>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Header Name</label>
+        <input type="text" class="form-control" name="custom_header_name" id="id_custom_header_name" value="{{ settings.custom_header_name }}">
+        <small class="text-muted">Overrides "{{ branch.shop.name|default:"Shop Name" }} - {{ branch.name|default:"Branch" }}" if left blank.</small>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Footer Text</label>
+        <input type="text" class="form-control" name="footer_text" id="id_footer_text" value="{{ settings.footer_text|default:"Thank you for shopping with us!" }}">
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Paper Width (mm)</label>
+          <input type="number" class="form-control" name="paper_width" id="id_paper_width" value="{{ settings.paper_width|default:80 }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Top Margin (px)</label>
+          <input type="number" class="form-control" name="margin_top" value="{{ settings.margin_top|default:8 }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Bottom Margin (px)</label>
+          <input type="number" class="form-control" name="margin_bottom" value="{{ settings.margin_bottom|default:8 }}">
+        </div>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="show_timestamp" id="id_show_timestamp" {% if settings.show_timestamp %}checked{% endif %}>
+        <label class="form-check-label" for="id_show_timestamp">Show print timestamp on receipt</label>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="auto_print" id="id_auto_print" {% if settings.auto_print %}checked{% endif %}>
+        <label class="form-check-label" for="id_auto_print">Automatically close print dialog after printing</label>
+      </div>
+
+      <button class="btn btn-primary">Save Settings</button>
+    </form>
+  </div>
+</div>
+
+<!-- Live preview -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card p-3">
+    <h5 class="mb-3">Preview</h5>
+    <div style="background:#f5f5f5; padding:20px; border-radius:6px;">
+      <div id="receipt-container" style="max-width:{{ settings.paper_width|default:80 }}mm; margin:auto; font-family:Arial, sans-serif; background:#fff; padding:12px; box-shadow:0 0 4px rgba(0,0,0,0.15);">
+        <div class="text-center mb-2">
+		 <span id="preview-initials" style="font-size:24px; border-radius:50%; border:2px solid black; padding:0 10px; display:{% if settings.logo %}none{% else %}inline-block{% endif %};">
+            {{ branch.shop.name|upper|slice:":1"|default:"S" }}{{ branch.name|upper|slice:":1"|default:"B" }}
+          </span>
+          <img id="preview-logo" src="{% if settings.logo %}{{ settings.logo.url }}{% endif %}"
+               style="max-height:50px; {% if not settings.logo %}display:none;{% endif %}">
+         
+          <h3 id="preview-header" style="margin:5px 0 0;">
+            {{ settings.custom_header_name|default:branch.shop.name|upper }} {% if not settings.custom_header_name %}- {{ branch.name|upper }}{% endif %}
+          </h3>
+          <hr style="border-top:1px dashed #000;">
+          <p style="margin:0; font-size:13px;">Cashier: Munoda Sinamai</p>
+          <p style="margin:2px 0;"><strong>Currency:</strong> USD</p>
+        </div>
+        <hr style="border-top:1px dashed #000;">
+        <div style="font-size:13px;">
+          <p style="margin:2px 0;"><strong>Date:</strong> 23 Aug, 2026 14:30</p>
+          <p style="margin:2px 0;"><strong>Transaction Code:</strong> TXN-0001</p>
+		  <p style="margin:2px 0;"><strong>Receipt Number:</strong> SH-BR-0001</p>
+        </div>
+        <div style="font-size:13px; margin-top:5px;">
+          <div style="display:flex; font-weight:bold; border-bottom:1px dashed #000; padding-bottom:3px;">
+            <div style="width:10%; text-align:center;">Qty</div>
+            <div style="width:50%; text-align:left;">Product</div>
+            <div style="width:20%; text-align:right;">Price</div>
+            <div style="width:20%; text-align:right;">Total</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+            <div style="width:10%; text-align:center;">2</div>
+            <div style="width:50%; text-align:left;">Sample Product</div>
+            <div style="width:20%; text-align:right;">$5.00</div>
+            <div style="width:20%; text-align:right;">$10.00</div>
+          </div>
+        </div>
+        <hr style="border-top:1px dashed #000;">
+        <div style="text-align:right; font-size:13px;">
+          <p style="margin:1px 0;"><strong>Grand Total:</strong> $10.00</p>
+        </div>
+        <div class="text-center" style="font-size:12px; margin-top:5px;">
+          <small id="preview-footer"><b>{{ settings.footer_text|default:"Thank you for shopping with us!" }}</b></small>
+          <br id="preview-timestamp-br" style="{% if not settings.show_timestamp %}display:none;{% endif %}">
+          <small id="preview-timestamp" style="{% if not settings.show_timestamp %}display:none;{% endif %}">23 Aug 2026 14:30</small>
+        </div>
+      </div>
+    </div>
+    <small class="text-muted d-block mt-2">Updates live as you type, using sample data.</small>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const headerInput = document.getElementById("id_custom_header_name");
+  const footerInput = document.getElementById("id_footer_text");
+  const widthInput = document.getElementById("id_paper_width");
+  const timestampCheckbox = document.getElementById("id_show_timestamp");
+  const logoFileInput = document.getElementById("id_logo");
+
+  const previewHeader = document.getElementById("preview-header");
+  const previewFooter = document.getElementById("preview-footer");
+  const receiptContainer = document.getElementById("receipt-container");
+  const previewTimestamp = document.getElementById("preview-timestamp");
+  const previewTimestampBr = document.getElementById("preview-timestamp-br");
+  const previewLogo = document.getElementById("preview-logo");
+  const previewInitials = document.getElementById("preview-initials");
+
+  const defaultHeader = previewHeader.textContent.trim();
+
+  headerInput.addEventListener("input", function () {
+    previewHeader.textContent = this.value.trim() || defaultHeader;
+  });
+
+  footerInput.addEventListener("input", function () {
+    previewFooter.textContent = this.value.trim() || "Thank you for shopping with us!";
+  });
+
+  widthInput.addEventListener("input", function () {
+    receiptContainer.style.maxWidth = (parseInt(this.value) || 80) + "mm";
+  });
+
+  timestampCheckbox.addEventListener("change", function () {
+    previewTimestamp.style.display = this.checked ? "inline" : "none";
+    previewTimestampBr.style.display = this.checked ? "inline" : "none";
+  });
+
+  logoFileInput.addEventListener("change", function () {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      previewLogo.src = e.target.result;
+      previewLogo.style.display = "inline-block";
+      previewInitials.style.display = "none";
+    };
+    reader.readAsDataURL(file);
+  });
+});
+</script>
+{% endblock pageContent %}

@@ -1,0 +1,129 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+            <h4 class="mb-0">📋 Stock Count Report</h4>
+            <a href="{% url 'stock-count-reports' %}" class="btn btn-secondary">&larr; Back to Reports</a>
+        </div>
+        <p class="text-muted">
+            Counted by <strong>{{ report_by }}</strong> on <strong>{{ report_date|date:"Y-m-d H:i" }}</strong>
+        </p>
+
+        <!-- Filters -->
+        <form method="get" class="row g-3 mb-3 align-items-end">
+            {% if branches %}
+            <div class="col-md-3">
+                <label for="branch">Branch</label>
+                <select id="branch" name="branch" class="form-control">
+                    <option value="">All Branches</option>
+                    {% for b in branches %}
+                    <option value="{{ b.id }}" {% if b == selected_branch %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-4">
+                <label for="searchBox">Search product</label>
+                <input type="text" id="searchBox" class="form-control" placeholder="Product name...">
+            </div>
+            <div class="col-md-5">
+                {% if branches %}<button type="submit" class="btn btn-primary">Filter</button>{% endif %}
+                <button type="button" class="btn btn-dark result-filter" data-filter="all">All</button>
+                <button type="button" class="btn btn-outline-danger result-filter" data-filter="short">Shortages</button>
+                <button type="button" class="btn btn-outline-success result-filter" data-filter="over">Overstock</button>
+                <button type="button" class="btn btn-outline-secondary result-filter" data-filter="match">Matched</button>
+            </div>
+        </form>
+
+        <!-- Summary cards -->
+        <div class="row mb-3">
+            <div class="col-md-3 mb-2"><div class="p-3 border rounded text-center h-100">
+                <div class="text-muted">Products Counted</div>
+                <h4>{{ products_counted }}</h4>
+                <small class="text-muted">{{ matched }} matched</small>
+            </div></div>
+            <div class="col-md-3 mb-2"><div class="p-3 border rounded text-center h-100">
+                <div class="text-muted">Shortage</div>
+                <h4 class="text-danger">&#9660; {{ total_shortage_qty }}</h4>
+                <small class="text-danger">{{ total_shortage|floatformat:2 }}</small>
+            </div></div>
+            <div class="col-md-3 mb-2"><div class="p-3 border rounded text-center h-100">
+                <div class="text-muted">Overstock</div>
+                <h4 class="text-success">&#9650; {{ total_overstock_qty }}</h4>
+                <small class="text-success">{{ total_overstock|floatformat:2 }}</small>
+            </div></div>
+            <div class="col-md-3 mb-2"><div class="p-3 border rounded text-center h-100">
+                <div class="text-muted">Net Difference</div>
+                <h4 class="{% if net_discrepancy_qty < 0 %}text-danger{% elif net_discrepancy_qty > 0 %}text-success{% endif %}">
+                    {% if net_discrepancy_qty > 0 %}+{% endif %}{{ net_discrepancy_qty }}
+                </h4>
+                <small class="{% if net_value < 0 %}text-danger{% elif net_value > 0 %}text-success{% endif %}">
+                    {% if net_value > 0 %}+{% endif %}{{ net_value|floatformat:2 }}
+                </small>
+            </div></div>
+        </div>
+
+        <!-- Details -->
+        <h5>Details</h5>
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table pos-table" id="countTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>System Stock</th>
+                        <th>Physical Count</th>
+                        <th>Discrepancy</th>
+                        <th>Value (Cost)</th>
+                        <th>Counted By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in counts %}
+                    <tr data-result="{% if c.discrepancy < 0 %}short{% elif c.discrepancy > 0 %}over{% else %}match{% endif %}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ c.product.name }}</td>
+                        <td>{{ c.system_stock }}</td>
+                        <td>{{ c.physical_count }}</td>
+                        <td class="fw-semibold {% if c.discrepancy < 0 %}text-danger{% elif c.discrepancy > 0 %}text-success{% else %}text-muted{% endif %}">
+                            {% if c.discrepancy < 0 %}&#9660; {{ c.discrepancy }}{% elif c.discrepancy > 0 %}&#9650; +{{ c.discrepancy }}{% else %}0{% endif %}
+                        </td>
+                        <td class="{% if c.value_diff < 0 %}text-danger{% elif c.value_diff > 0 %}text-success{% endif %}">
+                            {{ c.value_diff|floatformat:2 }}
+                        </td>
+                        <td>{{ c.counted_by.username|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center">No counts found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+let activeResult = "all";
+
+function applyFilters() {
+    const q = $('#searchBox').val().toLowerCase();
+    $('#countTable tbody tr[data-result]').each(function () {
+        const matchText = $(this).text().toLowerCase().includes(q);
+        const matchResult = activeResult === 'all' || $(this).data('result') === activeResult;
+        $(this).toggle(matchText && matchResult);
+    });
+}
+
+$('#searchBox').on('input', applyFilters);
+
+$('.result-filter').on('click', function () {
+    activeResult = $(this).data('filter');
+    $('.result-filter').removeClass('active');
+    $(this).addClass('active');
+    applyFilters();
+});
+</script>
+{% endblock ScriptBlock %}

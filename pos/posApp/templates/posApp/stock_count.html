@@ -1,0 +1,235 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+            <h4 class="mb-0">📋 Stock Count / Reconciliation</h4>
+
+            {% if branches %}
+            <div class="d-flex align-items-center gap-2">
+                <label for="branch-select" class="fw-semibold mb-0">Branch:</label>
+                <select id="branch-select" class="form-select w-auto">
+                    <option value="">All Branches</option>
+                    {% for b in branches %}
+                    <option value="{{ b.id }}" {% if b == selected_branch %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="alert alert-info py-2">
+            Count the items physically on the shelf and type the number next to each product.
+            Leave a product empty if you did not count it.
+        </div>
+
+        <!-- Summary cards -->
+        <div class="row mb-3">
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Products</div>
+                    <h4>{{ product_data|length }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Counted</div>
+                    <h4 class="text-success" id="sumCounted">0</h4>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Remaining</div>
+                    <h4 class="text-warning" id="sumRemaining">{{ product_data|length }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar bg-success" id="progressBar" role="progressbar" style="width: 0%"></div>
+        </div>
+
+        <!-- Search -->
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-md-5">
+                <label for="searchBox">Search product</label>
+                <input type="text" id="searchBox" class="form-control" placeholder="Type a product name...">
+            </div>
+            <div class="col-md-7">
+                <button type="button" class="btn btn-dark status-filter" data-filter="all">All</button>
+                <button type="button" class="btn btn-outline-warning status-filter" data-filter="remaining">Not counted</button>
+                <button type="button" class="btn btn-outline-success status-filter" data-filter="counted">Counted</button>
+            </div>
+        </div>
+
+        <form method="post" id="stock-count-form">
+            {% csrf_token %}
+
+            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                <table class="table pos-table" id="countTable">
+                    <thead style="position: sticky; top: 0; z-index: 2;">
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th>Product</th>
+                            <th style="width: 220px;" class="text-center">Physical Count</th>
+                            <th style="width: 120px;" class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in product_data %}
+                        <tr data-counted="0">
+                            <td>{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ item.product.name }}</td>
+                            <td>
+                                <input type="number"
+                                       name="count_{{ item.product.id }}"
+                                       min="0"
+                                       inputmode="numeric"
+                                       placeholder="Enter count"
+                                       class="form-control text-center counted-input">
+                            </td>
+                            <td class="text-center status-cell">
+                                <span class="badge bg-secondary">Not counted</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No products found for counting.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button type="button" class="btn btn-secondary" id="clearBtn">Clear all</button>
+                <button type="submit" class="btn btn-primary px-4" id="submitBtn">✅ Submit Count</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+let activeFilter = "all";
+const total = $('.counted-input').length;
+
+function showAlert(message, type = 'success', duration = 4000) {
+    $('#alert-container').html(
+        '<div class="alert alert-' + type + ' py-2 px-3 mb-2" role="alert">' + message + '</div>'
+    );
+    if (duration > 0) setTimeout(() => $('#alert-container').html(''), duration);
+}
+
+function applyFilters() {
+    const q = $('#searchBox').val().toLowerCase();
+    $('#countTable tbody tr[data-counted]').each(function () {
+        const matchText = $(this).text().toLowerCase().includes(q);
+        const isCounted = $(this).attr('data-counted') === '1';
+        const matchStatus = activeFilter === 'all' ||
+                            (activeFilter === 'counted' && isCounted) ||
+                            (activeFilter === 'remaining' && !isCounted);
+        $(this).toggle(matchText && matchStatus);
+    });
+}
+
+function updateProgress() {
+    let counted = 0;
+    $('.counted-input').each(function () {
+        if ($(this).val() !== '') counted++;
+    });
+    $('#sumCounted').text(counted);
+    $('#sumRemaining').text(total - counted);
+    $('#progressBar').css('width', (total ? (counted / total * 100) : 0) + '%');
+}
+
+// mark row as counted / not counted
+$(document).on('input', '.counted-input', function () {
+    const $row = $(this).closest('tr');
+    const has = $(this).val() !== '';
+    $row.attr('data-counted', has ? '1' : '0');
+    $row.find('.status-cell').html(
+        has ? '<span class="badge bg-success">Counted</span>'
+            : '<span class="badge bg-secondary">Not counted</span>'
+    );
+    updateProgress();
+    if (activeFilter !== 'all') applyFilters();
+});
+
+// pressing Enter jumps to the next visible count box instead of submitting
+$(document).on('keydown', '.counted-input', function (e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const inputs = $('.counted-input:visible');
+        const idx = inputs.index(this);
+        if (idx > -1 && idx < inputs.length - 1) inputs.eq(idx + 1).focus();
+    }
+});
+
+$('#searchBox').on('input', applyFilters);
+
+$('.status-filter').on('click', function () {
+    activeFilter = $(this).data('filter');
+    $('.status-filter').removeClass('active');
+    $(this).addClass('active');
+    applyFilters();
+});
+
+$('#clearBtn').on('click', function () {
+    if (!confirm('Clear all entered counts?')) return;
+    $('.counted-input').val('').trigger('input');
+});
+
+// AJAX submit
+$('#stock-count-form').on('submit', function (e) {
+    e.preventDefault();
+
+    let counted = 0;
+    $('.counted-input').each(function () { if ($(this).val() !== '') counted++; });
+
+    if (counted === 0) {
+        showAlert('❌ Enter at least one count before submitting.', 'danger');
+        return;
+    }
+    if (!confirm('Submit ' + counted + ' counted product(s)? This will update stock.')) return;
+
+    $('#submitBtn').prop('disabled', true).text('Saving...');
+
+    $.ajax({
+        url: "{% url 'stock-count' %}",
+        method: "POST",
+        headers: {"X-CSRFToken": "{{ csrf_token }}"},
+        data: $(this).serialize(),
+        success: function (res) {
+            showAlert(res.msg, res.status === 'success' ? 'success' : 'danger');
+            if (res.status === 'success') {
+                setTimeout(() => { window.location.href = "{% url 'stock-count-reports' %}"; }, 1200);
+            } else {
+                $('#submitBtn').prop('disabled', false).text('✅ Submit Count');
+            }
+        },
+        error: function () {
+            showAlert('❌ Failed to save stock counts.', 'danger');
+            $('#submitBtn').prop('disabled', false).text('✅ Submit Count');
+        }
+    });
+});
+
+// branch filter (superusers)
+$('#branch-select').on('change', function () {
+    let url = "{% url 'stock-count' %}";
+    if ($(this).val()) url += "?branch=" + $(this).val();
+    window.location.href = url;
+});
+
+updateProgress();
+</script>
+{% endblock ScriptBlock %}

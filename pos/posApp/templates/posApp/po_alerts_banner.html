@@ -1,0 +1,43 @@
+{% if po_alert_show_banner %}
+<div id="po-alert-banner" class="mdc-layout-grid py-1">
+  <div class="mdc-layout-grid__inner">
+    <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+      <div class="alert alert-warning w-100 rounded-0 mb-0">
+        <div class="d-flex w-100">
+          <div class="col-auto flex-shrink-1 flex-grow-1">
+            <strong>&#9888; Unpaid purchase orders are almost due</strong>
+            <ul class="mb-1 mt-1 ps-3">
+              {% for a in po_alerts %}
+              <li>
+                PO-{{ a.order_id }} &middot; {{ a.supplier }}{% if a.product %} ({{ a.product }}){% endif %}
+                &mdash; ${{ a.remaining }} unpaid, due {{ a.due_date|date:"d M Y" }}
+                {% if a.days_left == 0 %}
+                  <span class="badge bg-danger">due today</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">{{ a.days_left }} day{{ a.days_left|pluralize }} left</span>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            <a href="{% url 'credit-list' %}" class="btn btn-sm btn-dark">Open credit management</a>
+          </div>
+          <div class="col-auto text-center">
+            <button class="btn-close btn-sm text-sm" type="button" id="po-alert-dismiss" title="Hide for today"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // Hides the banner for today only. It shows again tomorrow while the order is still unpaid.
+  $('#po-alert-dismiss').on('click', function () {
+    $.ajax({
+      url: "{% url 'dismiss-po-alerts' %}",
+      method: "POST",
+      headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    });
+    $('#po-alert-banner').remove();
+  });
+</script>
+{% endif %}

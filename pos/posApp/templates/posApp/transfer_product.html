@@ -1,0 +1,213 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+{% load static %}
+
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">&#128722; Transfer Products Between Branches</h4>
+    </div>
+  </div>
+</div>
+
+{% if error %}
+    <div class="alert alert-warning fw-bold text-center">{{ error }}</div>
+{% endif %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+
+    {% if products and branches %}
+    <form id="transferForm" method="POST" class="card p-4 shadow-sm border-0 rounded-3 bg-light">
+        {% csrf_token %}
+
+        <p class="text-muted mb-3">
+            Add as many products as you need. Each row can go to a different branch.
+            Nothing is moved unless every row is valid.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table align-middle" id="transferTable">
+                <thead>
+                    <tr>
+                        <th style="width:42%">Product</th>
+                        <th style="width:30%">Destination Branch</th>
+                        <th style="width:18%">Quantity</th>
+                        <th style="width:10%"></th>
+                    </tr>
+                </thead>
+                <tbody id="transferRows"></tbody>
+            </table>
+        </div>
+
+        <div class="mb-3">
+            <button type="button" id="addRowBtn" class="btn btn-outline-primary btn-sm">+ Add another product</button>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" id="transferBtn" class="btn btn-primary px-5 py-2 fw-bold">Transfer</button>
+        </div>
+    </form>
+
+    <div id="message" class="mt-4 text-center"></div>
+
+    <!-- Row template -->
+    <template id="rowTemplate">
+        <tr class="transfer-row">
+            <td>
+                <select name="product_id[]" class="form-select product-select" required>
+                    <option value="">-- Choose Product --</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" data-stock="{{ product.stock }}">
+                            {{ product.name }} ({{ product.branch.name|default:"No Branch" }}) - Stock: {{ product.stock }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="destination_branch_id[]" class="form-select branch-select" required>
+                    <option value="">-- Choose Destination Branch --</option>
+                    {% for branch in branches %}
+                        <option value="{{ branch.id }}">{{ branch.name|default:"Unknown Branch" }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input type="number" name="quantity[]" min="1" class="form-control qty-input" required>
+                <small class="text-muted stock-hint"></small>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove row">&times;</button>
+            </td>
+        </tr>
+    </template>
+    {% endif %}
+</div></div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+(function () {
+    const form = document.getElementById('transferForm');
+    if (!form) return;
+
+    const rowsBody = document.getElementById('transferRows');
+    const tpl = document.getElementById('rowTemplate');
+    const msg = document.getElementById('message');
+
+    function showMessage(type, text) {
+        msg.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'alert alert-' + type + ' fw-bold';
+        div.textContent = text;          // textContent: never interpret server text as HTML
+        msg.appendChild(div);
+    }
+
+    function addRow() {
+        rowsBody.appendChild(tpl.content.cloneNode(true));
+        refreshRemoveButtons();
+    }
+
+    function refreshRemoveButtons() {
+        const rows = rowsBody.querySelectorAll('.transfer-row');
+        rows.forEach(r => {
+            r.querySelector('.remove-row').disabled = rows.length === 1;
+        });
+    }
+
+    // Total requested per product across all rows (the same product can go to several branches)
+    function requestedTotals() {
+        const totals = {};
+        rowsBody.querySelectorAll('.transfer-row').forEach(r => {
+            const pid = r.querySelector('.product-select').value;
+            const qty = parseInt(r.querySelector('.qty-input').value, 10) || 0;
+            if (pid) totals[pid] = (totals[pid] || 0) + qty;
+        });
+        return totals;
+    }
+
+    function updateHints() {
+        const totals = requestedTotals();
+        rowsBody.querySelectorAll('.transfer-row').forEach(r => {
+            const sel = r.querySelector('.product-select');
+            const opt = sel.options[sel.selectedIndex];
+            const hint = r.querySelector('.stock-hint');
+            const qtyInput = r.querySelector('.qty-input');
+            if (!sel.value) { hint.textContent = ''; qtyInput.removeAttribute('max'); return; }
+            const stock = parseInt(opt.dataset.stock, 10) || 0;
+            qtyInput.max = stock;
+            const total = totals[sel.value] || 0;
+            hint.textContent = 'In stock: ' + stock + (total > stock ? ' - too many requested' : '');
+            hint.className = 'stock-hint ' + (total > stock ? 'text-danger' : 'text-muted');
+        });
+    }
+
+    rowsBody.addEventListener('input', updateHints);
+    rowsBody.addEventListener('change', updateHints);
+    rowsBody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-row');
+        if (!btn) return;
+        btn.closest('.transfer-row').remove();
+        refreshRemoveButtons();
+        updateHints();
+    });
+    document.getElementById('addRowBtn').addEventListener('click', addRow);
+
+    addRow();
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const btn = document.getElementById('transferBtn');
+
+        // client-side checks (the server checks again)
+        const totals = requestedTotals();
+        for (const r of rowsBody.querySelectorAll('.transfer-row')) {
+            const qty = parseInt(r.querySelector('.qty-input').value, 10);
+            if (isNaN(qty) || qty <= 0) {
+                showMessage('danger', 'Every quantity must be a positive number.');
+                return;
+            }
+        }
+        for (const r of rowsBody.querySelectorAll('.transfer-row')) {
+            const sel = r.querySelector('.product-select');
+            const stock = parseInt(sel.options[sel.selectedIndex].dataset.stock, 10) || 0;
+            if ((totals[sel.value] || 0) > stock) {
+                showMessage('danger', 'Not enough stock for ' + sel.options[sel.selectedIndex].text.split(' (')[0] + '.');
+                return;
+            }
+        }
+
+        const data = new FormData(form);
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        try {
+            const response = await fetch("{% url 'transfer_product' %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": data.get("csrfmiddlewaretoken") },
+                body: data
+            });
+
+            let resultJson = null;
+            try { resultJson = await response.json(); } catch (e) { resultJson = null; }
+
+            if (response.ok && resultJson && resultJson.status === 'success') {
+                showMessage('success', resultJson.message);
+                // fresh stock numbers for the next transfer
+                setTimeout(() => location.reload(), 2500);
+            } else if (resultJson && resultJson.message) {
+                showMessage('danger', resultJson.message);
+            } else {
+                showMessage('danger', 'Error ' + response.status + ': ' + response.statusText);
+            }
+        } catch (error) {
+            showMessage('danger', 'Network or JavaScript Error: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Transfer';
+        }
+    });
+})();
+</script>
+{% endblock ScriptBlock %}

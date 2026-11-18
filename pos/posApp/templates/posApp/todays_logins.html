@@ -1,0 +1,94 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-0"><i class="bi bi-clock-history"></i> User Logins</h4>
+        <p class="mb-0 small">Who signed in during the selected period.</p>
+      </div>
+      <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    </div>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <form method="get" class="d-flex flex-wrap gap-2 mb-3">
+        <button type="submit" name="filter" value="today" class="btn btn-sm {% if active_filter == 'today' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Today</button>
+        <button type="submit" name="filter" value="yesterday" class="btn btn-sm {% if active_filter == 'yesterday' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Yesterday</button>
+        <button type="submit" name="filter" value="week" class="btn btn-sm {% if active_filter == 'week' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This Week</button>
+        <button type="submit" name="filter" value="month" class="btn btn-sm {% if active_filter == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This Month</button>
+        <button type="submit" name="filter" value="last_month" class="btn btn-sm {% if active_filter == 'last_month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Last Month</button>
+        <button type="submit" name="filter" value="last_3_months" class="btn btn-sm {% if active_filter == 'last_3_months' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Last 3 Months</button>
+        <button type="submit" name="filter" value="year" class="btn btn-sm {% if active_filter == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This Year</button>
+    </form>
+
+    {% if users_today %}
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Last Login Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users_today %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email|default:"-" }}</td>
+            <td>{{ user.last_login|date:"Y-m-d H:i:s" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center mb-0">No users logged in during this period.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <h5 class="mb-3"><i class="bi bi-bar-chart-line text-primary"></i> Logins in the Past 7 Days</h5>
+    <div style="position:relative;height:300px"><canvas id="loginChart"></canvas></div>
+  </div>
+</div>
+
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels = {{ login_chart_labels|safe }};
+  const data = {{ login_chart_data|safe }};
+  const ctx = document.getElementById('loginChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Number of Logins',
+        data: data,
+        backgroundColor: 'rgba(49, 87, 213, 0.65)',
+        borderColor: 'rgba(49, 87, 213, 1)',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+</script>
+{% endblock ScriptBlock %}

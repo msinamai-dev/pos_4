@@ -1,0 +1,143 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">📦 Stock Adjustment Report</h4>
+            <a href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=csv"
+               class="btn btn-success btn-sm">⬇ Export CSV</a>
+        </div>
+
+        <!-- Filters -->
+        <form method="get" class="row g-3 mb-3">
+            <div class="col-md-2">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control"
+                       value="{{ request.GET.start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control"
+                       value="{{ request.GET.end_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="product">Product</label>
+                <select id="product" name="product" class="form-control">
+                    <option value="">All Products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"s" %}selected{% endif %}>
+                        {{ p.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="user">Adjusted By</label>
+                <select id="user" name="user" class="form-control">
+                    <option value="">All</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if request.GET.user == u.id|stringformat:"s" %}selected{% endif %}>
+                        {{ u.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="reason">Reason</label>
+                <input type="text" id="reason" name="reason" class="form-control"
+                       placeholder="e.g. damaged, expired" value="{{ request.GET.reason }}">
+            </div>
+            <div class="col-md-12 mt-2">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{{ request.path }}" class="btn btn-secondary">Reset</a>
+            </div>
+        </form>
+
+        <!-- Summary cards -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Total Records</div>
+                    <h4>{{ totals.total_records }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Net Quantity Adjusted</div>
+                    <h4 class="{% if totals.total_qty < 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ totals.total_qty }}
+                    </h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Total Cost Value</div>
+                    <h4 class="{% if totals.total_cost < 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ totals.total_cost|floatformat:2 }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary by product -->
+        <h5>Summary by Product</h5>
+        <div class="table-responsive mb-4" style="max-height: 300px; overflow-y: auto;">
+            <table class="table pos-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-end">Records</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Cost Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_product %}
+                    <tr>
+                        <td>{{ row.product__name }}</td>
+                        <td class="text-end">{{ row.records }}</td>
+                        <td class="text-end {% if row.qty < 0 %}text-danger{% else %}text-success{% endif %} fw-semibold">
+                            {{ row.qty }}
+                        </td>
+                        <td class="text-end">{{ row.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No data</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Details -->
+        <h5>Details</h5>
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table pos-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th class="text-end">Quantity</th>
+                        <th>Reason</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in adjustments %}
+                    <tr>
+                        <td>{{ a.date|date:"Y-m-d H:i" }}</td>
+                        <td>{{ a.product.name }}</td>
+                        <td class="text-end fw-semibold {% if a.quantity < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ a.quantity }}
+                        </td>
+                        <td>{{ a.reason|default:"-" }}</td>
+                        <td>{{ a.added_by.username|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center">No stock adjustments found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}

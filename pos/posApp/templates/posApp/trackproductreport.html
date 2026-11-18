@@ -1,0 +1,257 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card p-3">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0"> Product Stock Tracker</h4>
+      
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row mb-3">
+      <div class="col-md-4 mb-2">
+        <div class="p-3 border rounded text-center h-100">
+          <div class="text-muted">Total Products</div>
+          <h4>{{ products|length }}</h4>
+        </div>
+      </div>
+      <div class="col-md-4 mb-2">
+        <div class="p-3 border border-success rounded h-100">
+          <div class="text-success fw-bold mb-1">&#9650; Latest Stock Update</div>
+          {% if latest_info %}
+            <div><strong>{{ latest_info.product }}</strong></div>
+            <div class="text-muted small">{{ latest_info.user }} &middot; {{ latest_info.time|date:"M d, Y H:i" }}</div>
+          {% else %}
+            <div class="text-muted">No stock updates yet.</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-md-4 mb-2">
+        <div class="p-3 border border-secondary rounded h-100">
+          <div class="text-secondary fw-bold mb-1">&#9660; Oldest Stock Update</div>
+          {% if oldest_info %}
+            <div><strong>{{ oldest_info.product }}</strong></div>
+            <div class="text-muted small">{{ oldest_info.user }} &middot; {{ oldest_info.time|date:"M d, Y H:i" }}</div>
+          {% else %}
+            <div class="text-muted">No stock updates yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+
+    <div class="row g-3 mb-3 align-items-end">
+      <div class="col-md-5">
+        <label for="searchInput">Search</label>
+        <input type="text" id="searchInput" class="form-control" placeholder="Product or category...">
+      </div>
+      <div class="col-md-7">
+        <button type="button" class="btn btn-dark status-filter" data-status="all">All</button>
+        <button type="button" class="btn btn-outline-danger status-filter" data-status="low">Low (&lt;20)</button>
+        <button type="button" class="btn btn-outline-primary status-filter" data-status="medium">Medium</button>
+        <button type="button" class="btn btn-outline-success status-filter" data-status="good">Good</button>
+      </div>
+    </div>
+
+    <div class="table-responsive mb-4" style="max-height: 450px; overflow-y: auto;">
+      <table class="table pos-table" id="productTable">
+        <thead style="position: sticky; top: 0; z-index: 2;">
+          <tr>
+            <th>#</th>
+            <th>Category</th>
+            <th>Product</th>
+            <th class="text-end">Quantity</th>
+            <th>Last Stock Update</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+          <tr data-status="{% if product.stock < 20 %}low{% elif product.stock <= 55 %}medium{% else %}good{% endif %}">
+            <td>{{ forloop.counter }}</td>
+            <td>{{ product.category.name|default:"Not Set" }}</td>
+            <td>{{ product.name }} ({{ product.get_unit_display }})</td>
+            <td class="text-end fw-semibold
+              {% if product.stock < 20 %}text-danger{% elif product.stock <= 55 %}text-primary{% else %}text-success{% endif %}">
+              {{ product.stock }}
+            </td>
+            <td>
+              {% if product.last_stock_update %}
+                {{ product.last_stock_update|date:"M d, Y H:i" }}
+              {% else %}
+                <span class="text-muted">Never</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if product.stock < 20 %}
+                <span class="badge bg-danger">Low Stock</span>
+              {% elif product.stock <= 55 %}
+                <span class="badge bg-primary">Medium</span>
+              {% else %}
+                <span class="badge bg-success">Good</span>
+              {% endif %}
+              {% if product.id == latest_stock_product_id %}
+                <span class="badge bg-success">&#9650; Latest Update</span>
+              {% elif product.id == oldest_stock_product_id %}
+                <span class="badge bg-secondary">&#9660; Oldest Update</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted">No products found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="p-3 border rounded h-100 text-center">
+          <h6 class="fw-semibold mb-3"> Stock by Category</h6>
+          <canvas id="categoryStockChart" style="max-width: 280px; max-height: 280px; margin: 0 auto;"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6 mb-3">
+        <div class="p-3 border rounded h-100 text-center">
+          <h6 class="fw-semibold mb-3"> Low Stock Products</h6>
+          <canvas id="lowStockChart" style="max-height: 280px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Stock Updates Modal -->
+<div class="modal fade" id="stockUpdatesModal" tabindex="-1" aria-labelledby="stockUpdatesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="stockUpdatesLabel"> Stock Updates History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="updateSearch" class="form-control mb-3" placeholder="Search by product, user, or date...">
+
+        <div class="table-responsive">
+          <table class="table pos-table" id="updatesTable">
+            <thead style="position: sticky; top: 0; z-index: 2;">
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Added By</th>
+                <th>Previous Stock</th>
+                <th>Qty Added</th>
+                <th>Qty Removed</th>
+                <th>New Stock</th>
+                <th>Prev Price</th>
+                <th>New Price</th>
+                <th>Prev Cost</th>
+                <th>New Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for report in reports %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ report.added_on|date:"Y-m-d H:i" }}</td>
+                <td>{{ report.product.name }}</td>
+                <td>{{ report.added_by.username|default:"System" }}</td>
+                <td>{{ report.previous_stock }}</td>
+                <td {% if report.quantity_added > 0 %}class="text-success fw-semibold"{% endif %}>{{ report.quantity_added }}</td>
+                <td {% if report.quantity_removed > 0 %}class="text-danger fw-semibold"{% endif %}>{{ report.quantity_removed }}</td>
+                <td>{{ report.new_stock }}</td>
+                <td>{{ report.previous_price }}</td>
+                <td {% if report.new_price > report.previous_price %}class="text-success"{% elif report.new_price < report.previous_price %}class="text-danger"{% endif %}>{{ report.new_price }}</td>
+                <td>{{ report.previous_cprice }}</td>
+                <td {% if report.new_cprice > report.previous_cprice %}class="text-success"{% elif report.new_cprice < report.previous_cprice %}class="text-danger"{% endif %}>{{ report.new_cprice }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="12" class="text-center text-muted">No stock logs found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Product search + status filter (work together)
+  let activeStatus = "all";
+
+  function filterProducts() {
+    const q = document.getElementById("searchInput").value.toLowerCase();
+    document.querySelectorAll("#productTable tbody tr[data-status]").forEach(row => {
+      const matchText = row.innerText.toLowerCase().includes(q);
+      const matchStatus = activeStatus === "all" || row.dataset.status === activeStatus;
+      row.style.display = (matchText && matchStatus) ? "" : "none";
+    });
+  }
+
+  document.getElementById("searchInput").addEventListener("keyup", filterProducts);
+
+  document.querySelectorAll(".status-filter").forEach(btn => {
+    btn.addEventListener("click", function () {
+      activeStatus = this.dataset.status;
+      document.querySelectorAll(".status-filter").forEach(b => {
+        b.classList.toggle("active", b === this);
+      });
+      filterProducts();
+    });
+  });
+
+  // Modal search
+  document.getElementById("updateSearch").addEventListener("keyup", function () {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll("#updatesTable tbody tr").forEach(row => {
+      row.style.display = row.innerText.toLowerCase().includes(q) ? "" : "none";
+    });
+  });
+
+  // Chart data from Django
+  const categoryLabels = {{ category_labels|safe }};
+  const categoryStock = {{ category_stock|safe }};
+  const lowStockLabels = {{ low_stock_labels|safe }};
+  const lowStockValues = {{ low_stock_values|safe }};
+  const lowStockColors = {{ low_stock_colors|safe }};
+
+  new Chart(document.getElementById("categoryStockChart"), {
+    type: "doughnut",
+    data: {
+      labels: categoryLabels,
+      datasets: [{
+        data: categoryStock,
+        backgroundColor: [
+          "rgba(54,162,235,0.7)", "rgba(255,99,132,0.7)", "rgba(255,206,86,0.7)",
+          "rgba(75,192,192,0.7)", "rgba(153,102,255,0.7)", "rgba(255,159,64,0.7)"
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+  });
+
+  new Chart(document.getElementById("lowStockChart"), {
+    type: "bar",
+    data: {
+      labels: lowStockLabels,
+      datasets: [{ label: "Stock Qty", data: lowStockValues, backgroundColor: lowStockColors }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+{% endblock pageContent %}

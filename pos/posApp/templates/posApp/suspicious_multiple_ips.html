@@ -1,0 +1,42 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-4">
+        <h4><i class="material-icons text-warning">public</i> Users with Multiple IPs (Last 24h)</h4>
+        <hr>
+
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table pos-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Number of IPs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ u.user__username }}</td>
+                        <td>{{ u.ip_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mt-3">
+            No multiple IP logins detected in the last 24 hours.
+        </div>
+        {% endif %}
+
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary mt-3">
+            <i class="material-icons">arrow_back</i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,411 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .an {
+    --an-border: #e5e7eb;
+    --an-muted: #6b7280;
+    --an-text: #111827;
+    --an-soft: #f3f4f6;
+    --an-accent: #1d5f8a;
+    --an-green: #15803d;
+    --an-red: #dc2626;
+    --an-amber: #b45309;
+    color: var(--an-text);
+    font-size: 14px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--an-border);
+    border-radius: 10px;
+    padding: 0 24px 28px;
+    min-width: 0;
+  }
+
+  .an-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0 10px; }
+  .an-crumb { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--an-border); border-radius: 6px; padding: 4px 10px; font-size: .85rem; background: #fff; }
+  .an-crumb small { color: var(--an-muted); }
+
+  .an-btn { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--an-accent); background: var(--an-accent); color: #fff; font-size: .76rem; flex: none; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; cursor: pointer; }
+  .an-btn:hover { color: #fff; opacity: .92; }
+  .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
+  .an-btn.ghost:hover { color: var(--an-text); }
+  .an-btn.ghost.on { background: var(--an-soft); color: var(--an-text); border-color: #cbd0d8; }
+
+  /* filter bar */
+  .an-filters {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px;
+    background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .an-filters .fl { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .72rem; color: var(--an-muted); white-space: nowrap; }
+  .an-filters .fl .lbl { font-weight: 600; line-height: 1; }
+  .an-filters .ttl { align-self: center; flex-direction: row; align-items: center; gap: 6px; font-weight: 600; font-size: .8rem; color: var(--an-text); }
+  .an-filters select, .an-filters input[type=date], .an-filters input[type=text] {
+    box-sizing: border-box !important;
+    height: 34px !important; min-height: 34px !important;
+    width: 150px !important; max-width: none !important;
+    margin: 0 !important; padding: 0 10px !important;
+    border: 1px solid var(--an-border) !important; border-radius: 6px !important;
+    font-size: .8rem !important; color: var(--an-text); background-color: #fff;
+  }
+  .an-filters input[type=text] { width: 200px !important; }
+  .an-filters .btn-row { display: flex; align-items: center; gap: 8px; }
+  .an-filters .an-btn { height: 34px !important; margin: 0; }
+
+  /* tabs */
+  .an-tabbar { padding: 4px 0 18px; }
+  .an-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--an-border); background: var(--an-soft); border-radius: 8px; flex-wrap: wrap; }
+  .an-tab { border: 0; background: transparent; padding: 5px 14px; border-radius: 6px; font-size: .82rem; color: var(--an-muted); }
+  .an-tab:hover { color: var(--an-text); }
+  .an-tab.active { background: #fff; color: var(--an-text); box-shadow: 0 0 0 1px var(--an-border); font-weight: 500; }
+  .an-tab .cnt { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--an-soft); color: var(--an-muted); font-size: .68rem; line-height: 17px; text-align: center; }
+  .an-panel { display: none; }
+  .an-panel.active { display: block; }
+
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 2px 0 6px; }
+  .an .note { color: var(--an-muted); font-size: .78rem; margin: 0 0 14px; }
+
+  /* stats */
+  .an-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px 24px; margin-bottom: 22px; }
+  .an-stat .l { color: var(--an-muted); font-size: .78rem; }
+  .an-stat .v { font-size: 1.3rem; font-weight: 600; margin-top: 5px; line-height: 1.15; }
+  .an-stat .v.pos { color: var(--an-green); }
+  .an-stat .v.neg { color: var(--an-red); }
+  .an-stat .v.warn { color: var(--an-amber); }
+
+  /* tables */
+  .an-table-scroll { overflow: auto; max-height: 560px; border: 1px solid #eef0f5; border-radius: 8px; }
+  .an-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+  .an-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: var(--an-muted); font-weight: 500; font-size: .75rem; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--an-border); }
+  .an-table th.r, .an-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .an-table td { padding: 9px 12px; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-table tbody tr:hover { background: #fafbfd; }
+  .an-table tr:last-child td { border-bottom: 0; }
+  .an-table tfoot td { position: sticky; bottom: 0; background: #f9fafb; font-weight: 600; border-top: 1px solid var(--an-border); }
+  .an-table .b { font-weight: 600; }
+  .an-table a.plink { color: var(--an-text); text-decoration: none; font-weight: 600; }
+  .an-table a.plink:hover { color: var(--an-accent); text-decoration: underline; }
+  .an-table .sub { display: block; color: var(--an-muted); font-size: .72rem; font-weight: 400; }
+  .pos { color: var(--an-green); }
+  .neg { color: var(--an-red); }
+  .warn { color: var(--an-amber); }
+  .mut { color: var(--an-muted); }
+  .an-empty { color: var(--an-muted); font-size: .85rem; padding: 14px 12px; text-align: center; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .74rem; font-weight: 500; }
+  .pill.up { background: #dcfce7; color: #166534; }
+  .pill.down { background: #fee2e2; color: #991b1b; }
+  .pill.flat { background: var(--an-soft); color: var(--an-muted); }
+
+  @media (max-width: 1100px) { .an-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 760px) {
+    .an { padding: 0 14px 22px; }
+    .an-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+
+<div class="an mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+
+  <!-- ===== header ===== -->
+  <div class="an-head">
+    <span class="an-crumb">
+      <i class="bi bi-clock-history"></i> Stock history
+      <small>{{ shop_name }} &middot; {{ branch_name }}</small>
+    </span>
+  </div>
+
+  <!-- ===== filters ===== -->
+  <form method="get" class="an-filters" id="filterForm">
+    <span class="fl ttl"><i class="bi bi-funnel"></i> Filters</span>
+
+    <label class="fl"><span class="lbl">From</span>
+      <input type="date" name="start_date" value="{{ request.GET.start_date }}">
+    </label>
+    <label class="fl"><span class="lbl">To</span>
+      <input type="date" name="end_date" value="{{ request.GET.end_date }}">
+    </label>
+
+    <label class="fl"><span class="lbl">Product</span>
+      <select name="product">
+        <option value="">All</option>
+        {% for product in products %}
+        <option value="{{ product.id }}" {% if request.GET.product == product.id|stringformat:"s" %}selected{% endif %}>{{ product.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="fl"><span class="lbl">User</span>
+      <select name="user">
+        <option value="">All</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {% if request.GET.user == u.id|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="fl"><span class="lbl">Quick search</span>
+      <input type="text" id="searchBox" placeholder="Product, user, supplier...">
+    </label>
+
+    <div class="btn-row">
+      <button type="submit" class="an-btn">Filter</button>
+      <a href="{% url 'stock_update_history' %}" class="an-btn ghost">Reset</a>
+    </div>
+  </form>
+
+  <!-- ===== tabs ===== -->
+  <div class="an-tabbar">
+    <div class="an-tabs" role="tablist">
+      <button type="button" class="an-tab active" data-tab="summary">Summary<span class="cnt">{{ summary|length }}</span></button>
+      <button type="button" class="an-tab" data-tab="restocks">Restocks<span class="cnt" id="cntRestocks">0</span></button>
+      <button type="button" class="an-tab" data-tab="counts">Stock counts<span class="cnt" id="cntCounts">0</span></button>
+      <button type="button" class="an-tab" data-tab="transfers">Transfers<span class="cnt">{{ transfer_rows|length }}</span></button>
+    </div>
+  </div>
+
+  <!-- ================= SUMMARY ================= -->
+  <section class="an-panel active" id="tab-summary">
+    <h2 class="title">Summary per product</h2>
+    <p class="note">Totals for the dates chosen above. Click a product name, or its History button, to see every movement for that product. The user filter applies to the other tabs.</p>
+
+    <div class="an-stats">
+      <div class="an-stat"><div class="l">Units added</div><div class="v pos">&#9650; {{ totals.added|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Units sold</div><div class="v warn">{{ totals.sold|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Adjusted / breakage</div><div class="v neg">&#9660; {{ totals.adjusted|add:totals.broken|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Sent to branches</div><div class="v">{{ totals.sent|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Received from branches</div><div class="v">{{ totals.received|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Count difference</div><div class="v {% if totals.count_diff < 0 %}neg{% elif totals.count_diff > 0 %}pos{% endif %}">{% if totals.count_diff > 0 %}+{% endif %}{{ totals.count_diff }}</div></div>
+    </div>
+
+    <div style="margin-bottom:10px">
+      <button type="button" class="an-btn ghost" id="activeOnly">Only products with movement</button>
+    </div>
+
+    <div class="an-table-scroll">
+      <table class="an-table table-no-tools" id="summaryTable">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th class="r">Added</th>
+            <th class="r">Sold</th>
+            <th class="r">Returned</th>
+            <th class="r">Breakage</th>
+            <th class="r">Adjusted</th>
+            <th class="r">Sent</th>
+            <th class="r">Received</th>
+            <th class="r">Count diff</th>
+            <th class="r">Current stock</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in summary %}
+          <tr data-row data-active="{{ r.active|yesno:'1,0' }}">
+            <td>
+              <a class="plink" href="{% url 'product_history' r.product.id %}">{{ r.product.name }}</a>
+              <span class="sub">{{ r.product.category.name|default:"No category" }}</span>
+            </td>
+            <td class="r {% if r.added %}pos b{% else %}mut{% endif %}">{% if r.added %}&#9650; {{ r.added }}{% else %}0{% endif %}</td>
+            <td class="r {% if r.sold %}warn b{% else %}mut{% endif %}">{{ r.sold }}</td>
+            <td class="r {% if r.returned %}pos b{% else %}mut{% endif %}">{{ r.returned }}</td>
+            <td class="r {% if r.broken %}neg b{% else %}mut{% endif %}">{{ r.broken }}</td>
+            <td class="r {% if r.adjusted %}neg b{% else %}mut{% endif %}">{% if r.adjusted %}&#9660; {{ r.adjusted }}{% else %}0{% endif %}</td>
+            <td class="r {% if r.sent %}b{% else %}mut{% endif %}">{{ r.sent }}</td>
+            <td class="r {% if r.received %}b{% else %}mut{% endif %}">{{ r.received }}</td>
+            <td class="r {% if r.count_diff < 0 %}neg b{% elif r.count_diff > 0 %}pos b{% else %}mut{% endif %}">{% if r.count_diff > 0 %}+{% endif %}{{ r.count_diff }}</td>
+            <td class="r b" style="color:var(--an-accent)">{{ r.current }}</td>
+            <td class="r"><a class="an-btn ghost" href="{% url 'product_history' r.product.id %}"><i class="bi bi-clock-history"></i> History</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="11" class="an-empty">No products found</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if summary %}
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td class="r">{{ totals.added|intcomma }}</td>
+            <td class="r">{{ totals.sold|intcomma }}</td>
+            <td class="r">{{ totals.returned|intcomma }}</td>
+            <td class="r">{{ totals.broken|intcomma }}</td>
+            <td class="r">{{ totals.adjusted|intcomma }}</td>
+            <td class="r">{{ totals.sent|intcomma }}</td>
+            <td class="r">{{ totals.received|intcomma }}</td>
+            <td class="r">{% if totals.count_diff > 0 %}+{% endif %}{{ totals.count_diff }}</td>
+            <td class="r">{{ totals.current|intcomma }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= RESTOCKS ================= -->
+  <section class="an-panel" id="tab-restocks">
+    <h2 class="title">Restocks &amp; stock movement</h2>
+    <p class="note">Sold and Adjusted show what happened after each restock, until the next restock.</p>
+    <div class="an-table-scroll">
+      <table class="an-table table-no-tools" id="updateTable">
+        <thead>
+          <tr>
+            <th>Time</th><th>User</th><th>Product</th><th>Supplier</th>
+            <th class="r">Old stock</th><th class="r">Added</th><th class="r">New stock</th>
+            <th class="r">Sold</th><th class="r">Adjusted</th><th class="r">Current</th>
+            <th class="r">Price (old &rarr; new)</th><th class="r">Cost (old &rarr; new)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in stock_updates %}
+          {% if m.kind == 'update' %}
+          <tr data-row data-kind="update">
+            <td>{{ m.added_on|date:"Y-m-d H:i" }}</td>
+            <td>{{ m.added_by.username|default:"-" }}</td>
+            <td><a class="plink" href="{% url 'product_history' m.product.id %}">{{ m.product.name }}</a></td>
+            <td>{% if m.supplier %}{{ m.supplier.name }}{% else %}<span class="mut">N/A</span>{% endif %}</td>
+            <td class="r">{{ m.previous_stock }}</td>
+            <td class="r b {% if m.quantity_added > 0 %}pos{% endif %}">{% if m.quantity_added > 0 %}&#9650; {% endif %}{{ m.quantity_added }}</td>
+            <td class="r b {% if m.new_stock > m.previous_stock %}pos{% elif m.new_stock < m.previous_stock %}neg{% endif %}">
+              {% if m.new_stock > m.previous_stock %}&#9650;{% elif m.new_stock < m.previous_stock %}&#9660;{% endif %} {{ m.new_stock }}
+            </td>
+            <td class="r b warn">{% if m.quantity_added > 0 %}{{ m.sold_qty }}{% else %}-{% endif %}</td>
+            <td class="r b neg">{% if m.quantity_added > 0 %}{{ m.adjusted_qty }}{% else %}-{% endif %}</td>
+            <td class="r b" style="color:var(--an-accent)">{{ m.current_stock|default:"-" }}</td>
+            <td class="r">
+              {% if m.previous_price == m.new_price %}{{ m.new_price }}{% else %}
+              <span class="mut">{{ m.previous_price }}</span> &rarr;
+              <span class="b {% if m.new_price > m.previous_price %}pos{% else %}neg{% endif %}">{% if m.new_price > m.previous_price %}&#9650;{% else %}&#9660;{% endif %} {{ m.new_price }}</span>
+              {% endif %}
+            </td>
+            <td class="r">
+              {% if m.previous_cprice == m.new_cprice %}{{ m.new_cprice }}{% else %}
+              <span class="mut">{{ m.previous_cprice }}</span> &rarr;
+              <span class="b {% if m.new_cprice > m.previous_cprice %}pos{% else %}neg{% endif %}">{% if m.new_cprice > m.previous_cprice %}&#9650;{% else %}&#9660;{% endif %} {{ m.new_cprice }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          <tr id="emptyUpdate" style="display:none"><td colspan="12" class="an-empty">No restocks found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= COUNTS ================= -->
+  <section class="an-panel" id="tab-counts">
+    <h2 class="title">Stock counts &amp; discrepancies</h2>
+    <p class="note">A negative difference means fewer items were found than the system expected.</p>
+    <div class="an-table-scroll">
+      <table class="an-table table-no-tools" id="countTable">
+        <thead>
+          <tr>
+            <th>Time</th><th>Counted by</th><th>Product</th>
+            <th class="r">System stock</th><th class="r">Counted</th><th class="r">Discrepancy</th>
+            <th class="r">Value (cost)</th><th class="r">Current stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in stock_updates %}
+          {% if m.kind == 'count' %}
+          <tr data-row data-kind="count">
+            <td>{{ m.event_time|date:"Y-m-d H:i" }}</td>
+            <td>{{ m.added_by.username|default:"-" }}</td>
+            <td><a class="plink" href="{% url 'product_history' m.product.id %}">{{ m.product.name }}</a></td>
+            <td class="r">{{ m.system_stock }}</td>
+            <td class="r b">{{ m.physical_count }}</td>
+            <td class="r b {% if m.discrepancy < 0 %}neg{% elif m.discrepancy > 0 %}pos{% else %}mut{% endif %}">
+              {% if m.discrepancy < 0 %}&#9660; {{ m.discrepancy }}{% elif m.discrepancy > 0 %}&#9650; +{{ m.discrepancy }}{% else %}0{% endif %}
+            </td>
+            <td class="r {% if m.value_diff < 0 %}neg{% elif m.value_diff > 0 %}pos{% else %}mut{% endif %}">{{ m.value_diff|floatformat:2 }}</td>
+            <td class="r b" style="color:var(--an-accent)">{{ m.current_stock }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          <tr id="emptyCount" style="display:none"><td colspan="8" class="an-empty">No stock counts found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= TRANSFERS ================= -->
+  <section class="an-panel" id="tab-transfers">
+    <h2 class="title">Branch transfers</h2>
+    <p class="note">Stock sent from this branch, and stock received from other branches.</p>
+    <div class="an-table-scroll">
+      <table class="an-table table-no-tools" id="transferTable">
+        <thead>
+          <tr>
+            <th>Time</th><th>Direction</th><th>Product</th>
+            <th>From</th><th>To</th><th class="r">Quantity</th><th>By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transfer_rows %}
+          <tr data-row>
+            <td>{{ t.event_time|date:"Y-m-d H:i" }}</td>
+            <td><span class="pill {% if t.direction == 'In' %}up{% else %}down{% endif %}">{% if t.direction == 'In' %}&#9650; Received{% else %}&#9660; Sent{% endif %}</span></td>
+            <td><a class="plink" href="{% url 'product_history' t.product.id %}">{{ t.product.name }}</a></td>
+            <td>{{ t.from_branch.name }}</td>
+            <td>{{ t.to_branch.name }}</td>
+            <td class="r b">{{ t.quantity }}</td>
+            <td>{{ t.created_by.username|default:"-" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="an-empty">No transfers found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  /* ---------- tabs ---------- */
+  const tabs = document.querySelectorAll('.an-tab');
+  const panels = document.querySelectorAll('.an-panel');
+  function showTab(name) {
+    if (!document.getElementById('tab-' + name)) name = 'summary';
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+    history.replaceState(null, '', location.search + '#' + name);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  showTab((location.hash || '').replace('#', '') || 'summary');
+
+  /* ---------- search + "only products with movement" ---------- */
+  const rows = document.querySelectorAll('tr[data-row]');
+  const box = document.getElementById('searchBox');
+  const activeBtn = document.getElementById('activeOnly');
+  let activeOnly = false;
+
+  function apply() {
+    const q = box.value.toLowerCase();
+    let restocks = 0, counts = 0;
+    rows.forEach(function (row) {
+      let show = row.textContent.toLowerCase().includes(q);
+      if (show && activeOnly && row.dataset.active === '0') show = false;
+      row.style.display = show ? '' : 'none';
+      if (show && row.dataset.kind === 'update') restocks++;
+      if (show && row.dataset.kind === 'count') counts++;
+    });
+    document.getElementById('emptyUpdate').style.display = restocks ? 'none' : '';
+    document.getElementById('emptyCount').style.display = counts ? 'none' : '';
+    document.getElementById('cntRestocks').textContent = restocks;
+    document.getElementById('cntCounts').textContent = counts;
+  }
+
+  box.addEventListener('input', apply);
+  box.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  activeBtn.addEventListener('click', function () {
+    activeOnly = !activeOnly;
+    this.classList.toggle('on', activeOnly);
+    apply();
+  });
+  apply();
+});
+</script>
+{% endblock pageContent %}

@@ -1,0 +1,20 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<form method="POST">
+  {% csrf_token %}
+  <div class="mb-3">
+    <label for="id_name" class="form-label">Branch Name</label>
+    {{ form.name }}
+  </div>
+  <div class="mb-3">
+    <label for="id_location" class="form-label">Location</label>
+    {{ form.location }}
+  </div>
+  <div class="form-check mb-3">
+    {{ form.is_active }}
+    <label for="id_is_active" class="form-check-label">Active</label>
+  </div>
+  <button type="submit" class="btn btn-success">Save Branch</button>
+</form>
+{% endblock pageContent %}

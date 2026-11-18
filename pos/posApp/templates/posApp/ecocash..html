@@ -1,0 +1,12 @@
+{% extends "posApp/base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Pay with EcoCash</h2>
+  <form method="post">
+    {% csrf_token %}
+    <label for="phone_number">EcoCash Number:</label>
+    <input type="text" name="phone_number" required class="form-control mb-3" placeholder="e.g. 0772xxxxxx">
+    <button type="submit" class="btn btn-primary">Pay {{ plan.price }}</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,533 @@
+{% load static %}
+
+<style>
+
+    .sidebar-gradient {
+    background: #ffffff;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-gradient.mdc-drawer--open {
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 992px) {
+    .sidebar-gradient {
+        width: 256px;
+    }
+    .sidebar-gradient.mdc-drawer--open ~ .mdc-drawer-app-content {
+        margin-left: 256px;
+        width: calc(100% - 256px);
+    }
+}
+
+@media (max-width: 991.98px) {
+    .sidebar-gradient {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1200;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.18);
+    }
+}
+    .sidebar-gradient .mdc-drawer__header {
+        flex-shrink: 0;
+        background: rgba(0, 0, 0, 0.15);
+    }
+    .sidebar-gradient .mdc-drawer__content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+    .sidebar-gradient .border-bright {
+        border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .sidebar-gradient .mdc-drawer-link {
+        color: black !important;
+        border-radius: 8px;
+        margin: 2px 10px;
+        transition: background 0.2s ease, color 0.2s ease, padding-left 0.2s ease;
+    }
+    .sidebar-gradient .mdc-drawer-item-icon {
+        color: rgba(200, 12, 12, 0.55);
+        transition: color 0.2s ease;
+    }
+    .sidebar-gradient .mdc-drawer-link:hover {
+        background: rgba(124, 140, 255, 0.10);
+        padding-left: 4px;
+    }
+    .sidebar-gradient .mdc-drawer-link:hover .mdc-drawer-item-icon,
+    .sidebar-gradient .mdc-drawer-link[aria-expanded="true"] .mdc-drawer-item-icon {
+        color: #7c8cff;
+    }
+    .sidebar-gradient .mdc-drawer-link[aria-expanded="true"] {
+        background: rgba(124, 140, 255, 0.12);
+    }
+
+    /* ===== Sub menus ===== */
+    .sidebar-gradient .mdc-drawer-submenu .mdc-drawer-link {
+        padding-left: 2.5rem;
+        font-size: 0.92rem;
+        opacity: 0.9;
+    }
+
+    /* ===== Logout icon, bottom-left ===== */
+    .sidebar-gradient .sidebar-footer {
+        flex-shrink: 0;
+        display: flex;
+        justify-content: flex-start;
+        padding: 12px 16px;
+        background: #ffffff;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    .sidebar-gradient .logout-icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #c80c0c;
+        background: rgba(200, 12, 12, 0.08);
+        text-decoration: none;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .sidebar-gradient .logout-icon-btn:hover {
+        background: #c80c0c;
+        color: #ffffff;
+        transform: scale(1.08);
+    }
+    .sidebar-gradient .logout-icon-btn .material-icons {
+        font-size: 24px;
+    }
+</style>
+
+{% comment %} Every check below uses user_perms (role permissions + extra permissions; superusers pass everything). It comes from the context processor posApp.context_processors.user_perms {% endcomment %}
+
+<aside class="mdc-drawer mdc-drawer--dismissible mdc-drawer--open sidebar-gradient">
+
+    <!-- ========== Header / logo ========== -->
+    <div class="mdc-drawer__header border-bottom border-bright">
+        <a class="brand-logo d-flex align-items-center justify-content-center">
+            <img src="{% static 'posAPP/ICOM.png' %}" alt="Logo" style="height: 40px; margin-right: 10px;">
+            <b><h3 class="text-light mb-0"></h3></b>
+        </a>
+    </div>
+
+    <!-- ========== Scrolling menu ========== -->
+    <div class="mdc-drawer__content">
+        <div class="mdc-list-group">
+            <nav class="mdc-list mdc-drawer-menu" id="sidebarAccordion">
+
+                <!-- POS -->
+                {% if "make_sales" in user_perms %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link" href="{% url 'pos-page' %}">
+                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">payment</i> POS
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Dashboard -->
+                {% if "view_dashboard" in user_perms %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link" href="{% url 'home-page' %}">
+                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">home</i> Dashboard
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- ===== Products (shown only if at least one child is allowed) ===== -->
+                {% if "view_products" in user_perms or "view_categories" in user_perms or "manage_stocks" in user_perms or "stock_count" in user_perms or "stock_adjustment" in user_perms or "transfer_product" in user_perms or "view_suppliers" in user_perms or "manage_purchase_orders" in user_perms or "view_credit_purchases" in user_perms or "view_sales_report" in user_perms or auto_sections.Products %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link d-flex justify-content-between align-items-center"
+                       data-bs-toggle="collapse" href="#productsMenu" aria-expanded="false" aria-controls="productsMenu">
+                        <span>
+                            <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">store</i> Products
+                        </span>
+                        <i class="material-icons mdc-list-item__end-detail">expand_more</i>
+                    </a>
+                </div>
+                <div id="productsMenu" class="collapse" data-bs-parent="#sidebarAccordion">
+                    <nav class="mdc-list mdc-drawer-submenu">
+
+                        {% if "view_products" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'product-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Product
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_categories" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'category-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">folder</i> Category
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "manage_stocks" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock_page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">add</i> Stocks
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "stock_count" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock-count' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">add_circle</i> Stock Count
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "stock_adjustment" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'adjust-stock' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">tune</i> Stock Adjustment
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "transfer_product" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'transfer_product' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Product Transfer
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "manage_stocks" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock_attention' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Stock Attention
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_suppliers" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'supplier' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">people</i> Suppliers
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "manage_purchase_orders" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'purchase_orders' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">note</i> Purchase Orders
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_credit_purchases" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'credit-list' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">account_balance_wallet</i> Purchases On Credits
+                            </a>
+                        </div>
+                        {% endif %}
+
+                       
+
+                        {% if "view_sales_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'monthlysales' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Monthly Sales
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% for m in auto_sections.Products %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url m.url %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">{{ m.icon }}</i> {{ m.title }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endif %}
+
+                <!-- ===== Reports ===== -->
+                {% if "view_reports" in user_perms or auto_sections.Reports %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link d-flex justify-content-between align-items-center"
+                       data-bs-toggle="collapse" href="#reportsMenu" aria-expanded="false" aria-controls="reportsMenu">
+                        <span>
+                            <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">assessment</i> Reports
+                        </span>
+                        <i class="material-icons mdc-list-item__end-detail">expand_more</i>
+                    </a>
+                </div>
+                <div id="reportsMenu" class="collapse" data-bs-parent="#sidebarAccordion">
+                    <nav class="mdc-list mdc-drawer-submenu">
+
+                        {% if "view_sales_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'sales-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">receipt</i> Product Sold Report
+                            </a>
+                        </div>
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'deleted_sales_report' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">delete</i> Deleted Sales
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_shift_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'shift-report' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">schedule</i> Shift Report
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_product_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'product-report' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">report</i> Report Per Product
+                            </a>
+                        </div>
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'product_transfer_report' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">report</i> Product Transfer Report
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_stock_tracker" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock-tracker-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">track_changes</i> Product Tracker
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_stock_history" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock-history' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">history</i> Stock History
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "stock_count_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock-count-reports' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">format_list_numbered</i> Stock Count Report
+                            </a>
+                        </div>
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock-summary' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">dashboard</i> Stock Summary
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {# was nested inside the stock_count_report check, so it only showed with that permission #}
+                        {% if "stock_adjustment" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'stock_adjustment_report' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">tune</i> Stock Adjustment Report
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "manage_stocks" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'exchange-rate-audit' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">report</i> Exchange Rate Report
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% for m in auto_sections.Reports %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url m.url %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">{{ m.icon }}</i> {{ m.title }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endif %}
+
+                {% comment %}
+                <!-- ERP connections (kept as a Django comment so the {% url %} is not evaluated) -->
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link" href="{% url 'erp-link-requests' %}">
+                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">verified_user</i> ERP shop connections
+                    </a>
+                </div>
+                {% endcomment %}
+
+                <!-- ===== Settings ===== -->
+                {% if "manage_users" in user_perms or auto_sections.Settings %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link d-flex justify-content-between align-items-center"
+                       data-bs-toggle="collapse" href="#settingsMenu" aria-expanded="false" aria-controls="settingsMenu">
+                        <span>
+                            <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">settings</i> Settings
+                        </span>
+                        <i class="material-icons mdc-list-item__end-detail">expand_more</i>
+                    </a>
+                </div>
+                <div id="settingsMenu" class="collapse" data-bs-parent="#sidebarAccordion">
+                    <nav class="mdc-list mdc-drawer-submenu">
+
+                        {% if "create_user" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'create-user-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">store</i> Registration Page
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {# "Users" and "User List" pointed at the same page, so they are one link now #}
+                        {% if "user_list" in user_perms or "create_user" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'user-list' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">fingerprint</i> Users
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "view_branch" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'branch-list' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">location_city</i> Branch List
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "my-subscription" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'my-subscription' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">subscriptions</i> Subscriptions
+                            </a>
+                        </div>
+                        {% endif %}
+
+                         {% if "Exchange-rate" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'exchange-rates' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">add</i> Exchange Rate
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "subscription-plans" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'subscription-plans' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">assignment_turned_in</i> Subscription Plans
+                            </a>
+                        </div>
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'printer-settings' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">print</i> Printer Settings
+                            </a>
+                        </div>
+                        {% endif %}
+
+
+                        {% if "view_income_statement" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'income-statement' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">subscriptions</i> Income Statement
+                            </a>
+                        </div>
+                        {% endif %}
+                         {% if "subscription-plans" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'receipt-settings' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">assignment_turned_in</i> Receipt Settings
+                            </a>
+                        </div>
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'admin_dashboard' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">subscriptions</i> Admin
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        {% if "manage_subscriptions" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'manage_subscriptions' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">shop</i> Manage Subs
+                            </a>
+                        </div>
+                        {% endif %}
+
+                       {% if "manage_subscriptions" in user_perms %}
+<div class="mdc-list-item mdc-drawer-item">
+    <a class="mdc-drawer-link" href="{% url 'subscription-plans' %}">
+        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">shop</i> Plans Payments
+    </a>
+</div>
+{% endif %}
+
+                        {% for m in auto_sections.Settings %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url m.url %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">{{ m.icon }}</i> {{ m.title }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endif %}
+
+                
+                {% for section in auto_menu %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link d-flex justify-content-between align-items-center"
+                       data-bs-toggle="collapse" href="#auto-{{ section.id }}" aria-expanded="false" aria-controls="auto-{{ section.id }}">
+                        <span>
+                            <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">folder_open</i> {{ section.title }}
+                        </span>
+                        <i class="material-icons mdc-list-item__end-detail">expand_more</i>
+                    </a>
+                </div>
+                <div id="auto-{{ section.id }}" class="collapse" data-bs-parent="#sidebarAccordion">
+                    <nav class="mdc-list mdc-drawer-submenu">
+                        {% for m in section.items %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url m.url %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">{{ m.icon }}</i> {{ m.title }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endfor %}
+
+            </nav>
+        </div>
+    </div> <!-- end .mdc-drawer__content -->
+
+    <!-- ========== Logout icon, pinned bottom-left ========== -->
+    <div class="sidebar-footer">
+        <a class="logout-icon-btn" href="{% url 'login-user' %}" title="Logout" aria-label="Logout">
+            <i class="material-icons" aria-hidden="true">logout</i>
+        </a>
+    </div>
+
+
+<script>
+  (function () {
+    var drawer = document.querySelector('.sidebar-gradient');
+    if (drawer && window.matchMedia('(max-width: 991.98px)').matches) {
+      drawer.classList.remove('mdc-drawer--open');
+    }
+  })();
+</script>
+</aside>

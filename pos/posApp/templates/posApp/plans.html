@@ -1,0 +1,68 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+{% load static %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Choose Your Subscription Plan</h4>
+    </div>
+  </div>
+</div>
+
+   <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card">
+      {% for plan in plans %}
+        <div class="col-md-4 mb-4">
+          <div class="mdc-card p-4 h-100 shadow-sm d-flex flex-column justify-content-between">
+
+            <!-- Optional "Most Popular" Badge -->
+            {% if forloop.first %}
+              <div class="badge bg-primary text-white position-absolute mt-n3 ms-n3">⭐ Most Popular</div>
+            {% endif %}
+
+            <!-- Plan Title -->
+            <h3 class="mdc-typography--headline6 text-center">{{ plan.name }}</h3>
+            
+            <!-- Price -->
+            <p class="text-center mdc-typography--subtitle1 price">
+              <strong>${{ plan.price|floatformat:2 }}</strong> / {{ plan.duration_days }} days
+            </p>
+            
+            <!-- Description -->
+            <p class="mdc-typography--body2 text-muted text-center plan-desc">
+              {{ plan.description|default:"No description available."|truncatechars:120 }}
+            </p>
+            
+            <!-- Subscribe Button or Add Billing Method -->
+            <div class="text-center mt-3">
+              {% if user.billingmethod_set.exists %}
+                <!-- User already has billing method -->
+                <a href="{% url 'subscribe' plan.id %}" 
+                   class="mdc-button mdc-button--raised mdc-button--primary">
+                  <span class="mdc-button__label">Subscribe</span>
+                </a>
+              {% else %}
+                <!-- No billing method yet -->
+                <a href="{% url 'add-billing-method' %}?next={% url 'subscribe' plan.id %}" 
+                   class="mdc-button mdc-button--outlined mdc-button--secondary">
+                  <span class="mdc-button__label">Add Billing Method to Subscribe</span>
+                </a>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-12">
+          <div class="mdc-card p-4 text-center">
+            <p class="mdc-typography--body1">
+              😔 No subscription plans available at the moment.
+            </p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+{% endblock pageContent %}

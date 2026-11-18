@@ -1,0 +1,84 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">My Subcription</h4>
+    </div>
+  </div>
+</div>
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card">
+  {% if subscription %}
+    
+    <form method="post" action="{% url 'toggle-auto-renew' %}">
+      {% csrf_token %}
+      <button type="submit" class="mdc-button mdc-button--outlined">
+        {% if subscription.auto_renew %}
+          🔄 Disable Auto-Renew
+        {% else %}
+          ✅ Enable Auto-Renew
+        {% endif %}
+      </button>
+    </form>
+
+    <div class="mdc-card p-4 shadow-sm mt-3">
+      <h3 class="mdc-typography--headline6 mb-3">{{ subscription.plan.name }}</h3>
+
+      <!-- Status Badge -->
+      <p class="mb-3">
+        <span class="mdc-typography--body2">Status:</span>
+        {% if subscription.is_active %}
+          <span class="badge bg-success">✅ Active</span>
+        {% elif subscription.is_in_grace_period %}
+          <span class="badge bg-warning text-dark">⚠️ In Grace Period</span>
+        {% else %}
+          <span class="badge bg-danger">❌ Expired</span>
+        {% endif %}
+      </p>
+
+      <!-- Subscription Details -->
+      <div class="mdc-typography--body2">
+        <p><strong>Start Date:</strong> {{ subscription.start_date|date:"F j, Y" }}</p>
+        <p><strong>End Date:</strong> {{ subscription.end_date|date:"F j, Y" }}</p>
+        <p><strong>Next Billing Date:</strong> {{ subscription.next_billing_date|date:"F j, Y" }}</p>
+        <p><strong>Auto Renew:</strong> {{ subscription.auto_renew|yesno:"✅ Enabled,❌ Disabled" }}</p>
+      </div>
+
+      <!-- Grace Period Notice -->
+      {% if subscription.is_in_grace_period %}
+        <div class="mdc-card bg-warning p-3 mt-3 rounded">
+          <span class="mdc-typography--body2 text-dark">
+            ⚠️ Your subscription expired but is still within the {{ GRACE_PERIOD_DAYS }}-day grace period.<br>
+            Renew now to avoid service disruption.
+          </span>
+        </div>
+      {% endif %}
+
+      <!-- Actions -->
+      <div class="mt-4">
+        <a href="{% url 'subscription-plans' %}" 
+           class="mdc-button mdc-button--raised mdc-button--primary">
+          <span class="mdc-button__label">
+            {% if subscription.is_active %}Change Plan{% else %}Renew Subscription{% endif %}
+          </span>
+        </a>
+      </div>
+    </div>
+  {% else %}
+    <!-- If no subscription -->
+    <div class="mdc-card p-4 text-center">
+      <p class="mdc-typography--body1 mb-3">
+        ℹ️ You don’t have an active subscription.
+      </p>
+      <a href="{% url 'subscription-plans' %}" 
+         class="mdc-button mdc-button--outlined mdc-button--primary">
+        <span class="mdc-button__label">Choose a Plan</span>
+      </a>
+    </div>
+  {% endif %}
+
+    </div></div>
+{% endblock pageContent %}

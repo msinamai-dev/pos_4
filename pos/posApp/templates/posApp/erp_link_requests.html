@@ -1,0 +1,18 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <section class="w-100">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4"><div><div class="erp-link-eyebrow">OWNER CONTROL CENTRE</div><h1 class="h3 fw-bold mb-1">ERP shop connections</h1><p class="text-muted mb-0">Review ERP requests for shops you own. Only your registered shop ownership is shown here.</p></div><div class="erp-link-icon mb-0"><i class="bi bi-shield-check"></i></div></div>
+    <form method="get" class="card card-body mb-3 d-flex flex-row flex-wrap align-items-end gap-3">
+      <div class="flex-grow-1"><label class="form-label" for="link-search">Search requests</label><input id="link-search" class="form-control" type="search" name="q" value="{{ q }}" placeholder="Company, shop or requester"></div>
+      <div><label class="form-label" for="link-status">Status</label><select class="form-select" id="link-status" name="status"><option value="">All statuses</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div><label class="form-label" for="link-size">Rows</label><select class="form-select" id="link-size" name="page_size"><option value="10" {% if page_size == 10 %}selected{% endif %}>10</option><option value="15" {% if page_size == 15 %}selected{% endif %}>15</option></select></div>
+      <button class="btn btn-primary">Search</button>
+    </form>
+    <div class="card"><div class="table-responsive"><table class="table pos-table table-no-tools"><thead><tr><th>Requested</th><th>ERP company</th><th>Shop / branch</th><th>Requester</th><th>Decision</th><th>Expires</th><th>Approved by</th></tr></thead><tbody>
+    {% for row in page_obj %}<tr><td>{{ row.created_at|date:"d M Y H:i" }}</td><td class="fw-semibold">{{ row.company_name }}</td><td>{{ row.shop.name }}<small class="d-block text-muted">{% if row.branch_id %}Branch #{{ row.branch_id }}{% else %}All branches{% endif %}</small></td><td>{{ row.requested_by|default:"ERP administrator" }}</td><td><span class="badge {% if row.status == 'approved' %}text-bg-success{% elif row.status == 'pending' %}text-bg-warning{% elif row.status == 'rejected' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ row.get_status_display }}</span></td><td>{{ row.expires_at|date:"d M Y H:i" }}</td><td>{{ row.owner_user.get_username|default:"—" }}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted p-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>No ERP shop-link requests found for your shops.</td></tr>{% endfor %}
+    </tbody></table></div><div class="d-flex justify-content-between align-items-center flex-wrap gap-2 p-3"><small class="text-muted">{{ page_obj.paginator.count }} requests · Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</small><div class="btn-group btn-group-sm">{% if page_obj.has_previous %}<a class="btn btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_string }}">Previous</a>{% else %}<button class="btn btn-outline-secondary" disabled>Previous</button>{% endif %}{% if page_obj.has_next %}<a class="btn btn-outline-secondary" href="?page={{ page_obj.next_page_number }}&amp;{{ query_string }}">Next</a>{% else %}<button class="btn btn-outline-secondary" disabled>Next</button>{% endif %}</div></div></div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "posApp/base.html" %}
+
+{% block pageContent %}
+ <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0"> 📉 Adjust Stock (Breakage / Shortage)</h4>
+        <div class="d-flex gap-2">
+
+
+       
+        {% if branches %}
+        <div class="mb-3">
+          <label for="branch-select"><strong>Filter by Branch:</strong></label>
+          <select id="branch-select" class="form-select">
+            <option value="">-- All Branches --</option>
+            {% for b in branches %}
+              <option value="{{ b.id }}" {% if selected_branch and b.id == selected_branch.id %}selected{% endif %}>
+                {{ b.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+  </div>
+</div>
+
+       
+        <div id="alert-container" class="mb-2"></div>
+
+        
+   <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead><tr>
+              <th>Product</th>
+              <th>Current Stock</th>
+              <th>Quantity to Remove</th>
+             <th>Reason</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+            <tr>
+               <td class="text-center">{{ product.name }}</td>
+               <td class="text-center">
+                <span class="mdc-chip mdc-chip--outlined">
+                  <span class="mdc-chip__text">{{ product.stock }}</span>
+                </span>
+              </td>
+               <td class="text-center">
+                <div class="mdc-text-field mdc-text-field--outlined mdc-text-field--dense w-100">
+                  <input type="number" class="mdc-text-field__input qty-input" min="1">
+                  <div class="mdc-notched-outline">
+                    <div class="mdc-notched-outline__leading"></div>
+                    <div class="mdc-notched-outline__notch"></div>
+                    <div class="mdc-notched-outline__trailing"></div>
+                  </div>
+                </div>
+              </td>
+               <td class="text-center">
+                <div class="mdc-select mdc-select--outlined reason-select" style="width:90px;">
+                  <div class="mdc-select__anchor">
+                    <span class="mdc-select__selected-text">-- Choose Reason --</span>
+                    <span class="mdc-select__dropdown-icon"></span>
+                    
+                  </div>
+                  <div class="mdc-select__menu mdc-menu mdc-menu-surface">
+                    <ul class="mdc-list">
+                      <li class="mdc-list-item" data-value="breakage">Breakage</li>
+                      <li class="mdc-list-item" data-value="shortage">Shortage</li>
+                      <li class="mdc-list-item" data-value="shortage">Damaged</li>
+                      <li class="mdc-list-item" data-value="shortage">Expired</li>
+                    </ul>
+                  </div>
+                </div>
+              </td>
+               <td class="text-center">
+                <button class="mdc-button mdc-button--raised mdc-button--unelevated remove-stock-btn" data-id="{{ product.id }}">
+                  <span class="mdc-button__label">Remove</span>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block ScriptBlock %}
+<script>
+$(document).ready(function(){
+    // Initialize all MDC selects
+    document.querySelectorAll('.mdc-select').forEach(function(el){
+        const select = new mdc.select.MDCSelect(el);
+        select.listen('MDCSelect:change', () => {
+            $(el).find('.mdc-select__selected-text').text(
+                select.value.charAt(0).toUpperCase() + select.value.slice(1)
+            );
+        });
+    });
+
+    // Branch filter change
+    $('#branch-select').change(function(){
+        const branchId = $(this).val();
+        const url = new URL(window.location.href);
+        if(branchId){
+            url.searchParams.set('branch', branchId);
+        } else {
+            url.searchParams.delete('branch');
+        }
+        window.location.href = url.toString();
+    });
+
+    // Snackbar alert function
+    function showAlert(message, type='success', duration=3000){
+        const html = `
+          <div class="mdc-snackbar mdc-snackbar--${type}" style="display:block; margin-bottom:10px;">
+            <div class="mdc-snackbar__surface">
+              <div class="mdc-snackbar__label" role="status" aria-live="polite">${message}</div>
+            </div>
+          </div>`;
+        $('#alert-container').html(html);
+        if(duration>0) setTimeout(()=>$('#alert-container').html(''), duration);
+    }
+
+    // Remove button click
+    $('.remove-stock-btn').on('click', function(){
+        let row = $(this).closest('tr');
+        let productId = $(this).data('id');
+        let qty = parseInt(row.find('.qty-input').val());
+        let reason = row.find('.mdc-select__selected-text').text().toLowerCase();
+
+        if(!qty || qty <= 0){
+            showAlert('⚠️ Enter a valid quantity', 'danger');
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'adjust-stock' %}",
+            method: "POST",
+            headers: {"X-CSRFToken": "{{ csrf_token }}"},
+            data: {
+                product_id: productId,
+                quantity: qty,
+                reason: reason
+            },
+            success: function(res){
+                if(res.status=='success'){
+                    showAlert(res.msg, 'success');
+                    // Update stock in table
+                    let currentStockCell = row.find('td:nth-child(2) .mdc-chip__text');
+                    let newStock = parseInt(currentStockCell.text()) - qty;
+                    currentStockCell.text(newStock);
+                    row.find('.qty-input').val(''); // reset input
+                } else {
+                    showAlert(res.msg, 'danger'); // show backend error
+                }
+            },
+            error: function(){
+                showAlert('❌ Failed to adjust stock', 'danger');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

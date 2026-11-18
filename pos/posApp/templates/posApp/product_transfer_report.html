@@ -1,0 +1,98 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <h4>🔄 Product Transfer Report{% if branch %} – {{ branch.name }}{% endif %}</h4>
+
+        {% if error %}<div class="alert alert-warning">{{ error }}</div>{% endif %}
+
+        <!-- Filters -->
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-md-4">
+                <label for="searchBox">Search</label>
+                <input type="text" id="searchBox" class="form-control" placeholder="Product, branch or user...">
+            </div>
+            <div class="col-md-8">
+                <a href="?type=all"      class="btn {% if view_type == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %}">All</a>
+                <a href="?type=sent"     class="btn {% if view_type == 'sent' %}btn-danger{% else %}btn-outline-danger{% endif %}">Sent</a>
+                <a href="?type=received" class="btn {% if view_type == 'received' %}btn-success{% else %}btn-outline-success{% endif %}">Received</a>
+                <a href="{% url 'product_transfer_report' %}" class="btn btn-secondary">Reset</a>
+            </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Transfers</div>
+                    <h4>{{ rows|length }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Units Sent</div>
+                    <h4 class="text-danger">&#9660; {{ total_sent }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded text-center">
+                    <div class="text-muted">Units Received</div>
+                    <h4 class="text-success">&#9650; {{ total_received }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <h5>Details</h5>
+        <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+            <table class="table pos-table" id="transferTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        {% if has_date %}<th>Date</th>{% endif %}
+                        <th>Product</th>
+                        <th>Source Branch</th>
+                        <th>Destination Branch</th>
+                        <th class="text-end">Quantity</th>
+                        <th>Type</th>
+                        <th>Transferred By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        {% if has_date %}<td>{{ r.date|date:"Y-m-d H:i" }}</td>{% endif %}
+                        <td>{{ r.product }}</td>
+                        <td>{{ r.from_branch }}</td>
+                        <td>{{ r.to_branch }}</td>
+                        <td class="text-end fw-semibold {% if r.direction == 'Sent' %}text-danger{% else %}text-success{% endif %}">
+                            {% if r.direction == "Sent" %}&#9660;{% else %}&#9650;{% endif %} {{ r.quantity }}
+                        </td>
+                        <td>
+                            {% if r.direction == "Sent" %}
+                                <span class="badge bg-danger">Sent</span>
+                            {% else %}
+                                <span class="badge bg-success">Received</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.by|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted">No transfers found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('searchBox').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#transferTable tbody tr').forEach(function (row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock pageContent %}

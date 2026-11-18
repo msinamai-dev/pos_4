@@ -1,0 +1,780 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<style>
+  /* Cart scroll container: header stays visible while rows scroll */
+  #cart-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #5a6068; /* solid so rows don't show through while scrolling */
+  }
+  #POS-field.pos-disabled { opacity: .5; }
+
+  /* Print status notices */
+  #print-status .print-note-title { font-weight: 600; }
+  #print-status .print-note-detail { font-size: .85rem; margin-top: 2px; }
+  #print-status .print-note-actions { margin-top: 6px; }
+</style>
+
+<!-- Currencies of the open shift, read by the script (the script updates its own copy after opening a shift) -->
+{{ shift_currencies|json_script:"shift-currencies" }}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">🛒Point of Sale</h4>
+    </div>
+  </div>
+</div>
+<div class="d-flex align-items-center mb-3" style="justify-content: space-between;">
+  <!-- Shift Toggle Section -->
+  <div class="form-check form-switch" style="flex-grow: 1;">
+    <input class="form-check-input" type="checkbox" id="shiftToggle">
+    <h4><label class="form-check-label ms-2" for="shiftToggle" style="font-weight: 500;">Shift ON/OFF</label></h4>
+  </div>
+
+  <!-- Spacer -->
+  <div style="flex-grow: 16;"></div>
+
+  <!-- Expense Button Section -->
+  <div>
+    <button type="button" class="btn btn-outline-success btn-sm me-2" id="expenseBtn"
+      style="background-color: #003366; color: white; font-weight: 500; padding: 8px 10px;">
+      Add Expense
+    </button>
+  </div>
+</div>
+
+<!-- EXPENSE MODAL -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="expenseForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expenseModalLabel">Log Expense</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="expenseCurrency" class="form-label">Paid from (currency)</label>
+          <select id="expenseCurrency" class="form-select">
+            {% for cur in currencies %}
+              <option value="{{ cur }}" {% if cur == default_currency %}selected{% endif %}>{{ cur }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="expenseAmount" class="form-label">Amount</label>
+          <input type="number" class="form-control" id="expenseAmount" step="0.01" min="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label for="expenseReason" class="form-label">Reason</label>
+          <input type="text" class="form-control" id="expenseReason" required>
+        </div>
+        <div class="text-danger small" id="expenseError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save Expense</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CLOSE SHIFT MODAL (inputs are built by the script from the shift's currencies) -->
+<div class="modal fade" id="shiftCloseModal" tabindex="-1" aria-labelledby="shiftCloseLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="shiftCloseForm" class="modal-content" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="shiftCloseLabel">Close Shift</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Count the cash in the drawer and enter it for each currency. Use 0 if there is none.</p>
+        <div id="closeAmounts"></div>
+        <div class="text-danger small" id="closeShiftError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Confirm Close</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- OPEN SHIFT MODAL -->
+<div class="modal fade" id="shiftModal" tabindex="-1" aria-labelledby="shiftModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" id="shiftForm" novalidate>
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shiftModalLabel">Open Shift</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Enter the float for each currency. Use 0 if there is none.</p>
+          {% for cur in currencies %}
+          <div class="mb-3">
+            <label class="form-label" for="open_{{ cur }}">{{ cur }} float</label>
+            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control open-amount"
+                   id="open_{{ cur }}" data-currency="{{ cur }}" placeholder="0.00" required>
+          </div>
+          {% endfor %}
+          <div class="text-danger small" id="openShiftError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save Shift</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <form action="" id="pos-form">
+      <!-- ADD PRODUCTS -->
+      <fieldset>
+        <legend>Add Products</legend>
+        <div class="row align-items-end">
+          <div class="col-lg-5 col-md-5 col-sm-12">
+            <div class="form-group mb-3">
+              <label for="product-id">Select Product</label>
+              <select id="product-id" class="form-select form-select-sm">
+                <option value="" disabled selected></option>
+                {% for product in products %}
+                  <option value="{{ product.pk }}">{{ product.name }}({{product.id}})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-5 col-sm-12">
+            <div class="form-group mb-3">
+              <label for="product-qty">Qty</label>
+              <input type="number" class="form-control form-control-sm text-center" step="any" id="product-qty" value="1" min="1">
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-2 col-sm-12">
+            <div class="form-group mb-3">
+              <button class="btn btn-light btn-sm bg-gradient border rounded-0 text-start" type="button" id="add_item">
+                <i class="mdi mdi-plus"></i> Add Item
+              </button>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- CART + TOTALS -->
+      <fieldset>
+        <div class="d-flex w-100" id="POS-field">
+          <!-- CART TABLE (scrolls after 5 rows) -->
+          <div class="col-8 bg-gradient bg-light border h-100">
+            <div id="cart-scroll">
+              <table class="table pos-table table-no-tools">
+                <thead>
+                  <tr class="bg-dark bg-gradient bg-opacity-50 text-light">
+                    <th class="py-1 px-2 text-center"></th>
+                    <th class="py-1 px-2 text-center">QTY</th>
+                    <th class="py-1 px-2 text-center">Product</th>
+                    <th class="py-1 px-2 text-center" id="th-price">Price (USD)</th>
+                    <th class="py-1 px-2 text-center" id="th-total">Line Total (USD)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUMMARY PANEL -->
+          <div class="col-4 bg-gradient bg-dark bg-opacity-50 border h-100">
+            <div class="col-12 py-4 px-2">
+              <dl>
+                <dt class="h4 fw-bold text-light">Customer Name</dt>
+                <dd>
+                  <input type="text" class="form-control form-control-lg rounded-0 text-start" name="customer_name" placeholder="Enter Customer Name">
+                </dd>
+                <dt class="h4 fw-bold text-light">Currency</dt>
+                <dd>
+                  <select id="currencySelect" name="currency" class="form-select form-select-lg rounded-0 text-start">
+                    {% if currencies %}
+                      {% for cur in currencies %}
+                        <option value="{{ cur }}" {% if cur == default_currency %}selected{% endif %}>
+                          {{ cur }}
+                        </option>
+                      {% endfor %}
+                    {% else %}
+                      <option value="USD">USD</option>
+                    {% endif %}
+                  </select>
+                </dd>
+
+                <dt class="h4 fw-bold text-light">Sub Total</dt>
+                <dd class="text-end py-1 px-2 rounded-0 bg-light">
+                  <input type="hidden" name="sub_total" value="0">
+                  <span class="h3 fw-bold" id="sub_total">$0.00</span>
+                </dd>
+
+                <dt class="h4 fw-bold text-light">Grand Total</dt>
+                <dd class="text-end py-1 px-2 rounded-0 bg-light">
+                  <input type="hidden" name="grand_total" value="0">
+                  <!-- Tax amounts: stored and printed, but already included in the price -->
+                  <input type="hidden" name="inclusive_tax_amount" value="0">
+                  <input type="hidden" name="exclusive_tax_amount" value="0">
+                  <input type="hidden" name="tendered_amount" value="0">
+                  <input type="hidden" name="amount_change" value="0">
+                  <span class="h3 fw-bold" id="grand_total">$0.00</span>
+                </dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="row">
+        <div class="col-md-12 text-end">
+          <button class="btn btn-outline-success btn-sm me-2" type="button" id="check_out" style="background-color: darkslateblue; font-weight: bolder;">
+            <i class="mdi mdi-save"></i> Checkout
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ROW TEMPLATE -->
+<noscript id="item-clone">
+  <tr>
+    <td class="px-2 py-1 text-center">
+      <button class="btn btn-sm btn-outline-danger rounded-0 rem-item" type="button">
+        <i class="mdi mdi-close"></i>
+      </button>
+    </td>
+    <td class="px-2 py-1">
+      <input type="hidden" name="product_id[]">
+      <input type="hidden" name="price[]">
+      <input type="number" name="qty[]" min="1" class="form-control form-control-sm rounded-0 text-center">
+    </td>
+    <td class="px-2 py-1 product_name text-start"></td>
+    <td class="px-2 py-1 product_price text-end"></td>
+    <td class="px-2 py-1 product_total text-end"></td>
+  </tr>
+</noscript>
+
+<!-- Print queue status badges (outside the form so the shift lock doesn't disable them) -->
+<div id="print-status" style="position:fixed; right:16px; bottom:16px; z-index:2000; max-width:360px;"></div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+
+<script>
+var exchange_rates = {{ exchange_rates_json|safe }};
+</script>
+<script>
+
+  // =====================================================
+  // SHIFT STATE (comes from the server so refresh is safe)
+  // =====================================================
+  const shiftToggle = document.getElementById('shiftToggle');
+  const posForm = document.getElementById('pos-form');
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  let shiftIsOpen = {{ shift_open|yesno:"true,false" }};
+  // currencies of the open shift, used to build the close-shift inputs
+  let shiftCurrencies = JSON.parse(document.getElementById('shift-currencies').textContent);
+
+  const openModal    = new bootstrap.Modal(document.getElementById('shiftModal'));
+  const closeModal   = new bootstrap.Modal(document.getElementById('shiftCloseModal'));
+  const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+
+  function setPosEnabled(enabled){
+    posForm.classList.toggle('opacity-50', !enabled);
+    posForm.querySelectorAll('input, button, select, textarea').forEach(el => {
+      el.disabled = !enabled;
+    });
+  }
+
+  // initial state from the server
+  shiftToggle.checked = shiftIsOpen;
+  setPosEnabled(shiftIsOpen);
+
+  // One input per currency of the open shift
+  function renderCloseInputs(){
+    const box = document.getElementById('closeAmounts');
+    if (!shiftCurrencies.length){
+      box.innerHTML = '<p class="text-muted">No currencies were recorded when this shift opened.</p>';
+      return;
+    }
+    box.innerHTML = shiftCurrencies.map(cur => `
+      <div class="mb-3">
+        <label class="form-label" for="close_${cur}">${cur} counted</label>
+        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control close-amount"
+               id="close_${cur}" data-currency="${cur}" placeholder="0.00" required>
+      </div>`).join('');
+  }
+
+  function collectAmounts(selector){
+    const amounts = {};
+    document.querySelectorAll(selector).forEach(i => { amounts[i.dataset.currency] = i.value; });
+    return amounts;
+  }
+
+  function postJSON(url, payload){
+    return fetch(url, {
+      method: "POST",
+      headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(res => res.json());
+  }
+
+  // Handle toggle change
+  shiftToggle.addEventListener('change', function () {
+    document.getElementById('openShiftError').textContent = '';
+    document.getElementById('closeShiftError').textContent = '';
+    if (this.checked) {
+      openModal.show();
+    } else {
+      renderCloseInputs();
+      closeModal.show();
+    }
+  });
+
+  // If a modal is dismissed without saving, put the toggle back to the real state
+  ['shiftModal', 'shiftCloseModal'].forEach(id => {
+    document.getElementById(id).addEventListener('hidden.bs.modal', () => {
+      shiftToggle.checked = shiftIsOpen;
+    });
+  });
+
+  // Open shift
+  document.getElementById('shiftForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const errEl = document.getElementById('openShiftError');
+    errEl.textContent = '';
+    const amounts = collectAmounts('.open-amount');
+
+    postJSON("{% url 'open-shift' %}", { amounts })
+    .then(data => {
+      if (data.status === "success") {
+        shiftIsOpen = true;
+        // remember which currencies this shift has, USD first
+        shiftCurrencies = Object.keys(amounts).sort((a, b) => (a !== 'USD') - (b !== 'USD') || a.localeCompare(b));
+        shiftToggle.checked = true;
+        setPosEnabled(true);
+        this.reset();
+        openModal.hide();
+        alert("Shift started!");
+      } else {
+        errEl.textContent = data.message;
+      }
+    })
+    .catch(() => { errEl.textContent = 'Network error. Try again.'; });
+  });
+
+  // Close shift
+  document.getElementById('shiftCloseForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const errEl = document.getElementById('closeShiftError');
+    errEl.textContent = '';
+    const amounts = collectAmounts('.close-amount');
+
+    postJSON("{% url 'close-shift' %}", { amounts })
+    .then(response => {
+      if (response.status === "success") {
+        shiftIsOpen = false;
+        shiftCurrencies = [];
+        shiftToggle.checked = false;
+        setPosEnabled(false);
+        closeModal.hide();
+        alert("Shift closed successfully!");
+      } else {
+        errEl.textContent = response.message;
+      }
+    })
+    .catch(() => { errEl.textContent = 'Network error. Try again.'; });
+  });
+
+  // =====================================================
+  // EXPENSES (each expense is paid from one currency)
+  // =====================================================
+  document.getElementById("expenseBtn").addEventListener("click", () => {
+    document.getElementById('expenseError').textContent = '';
+    expenseModal.show();
+  });
+
+  document.getElementById("expenseForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const errEl = document.getElementById('expenseError');
+    errEl.textContent = '';
+
+    const amount   = document.getElementById("expenseAmount").value;
+    const reason   = document.getElementById("expenseReason").value;
+    const currency = document.getElementById("expenseCurrency").value;
+
+    postJSON("{% url 'log-expense' %}", { amount, reason, currency })
+    .then(data => {
+      if (data.status === "success") {
+        alert("Expense logged successfully");
+        this.reset();
+        expenseModal.hide();
+      } else {
+        errEl.textContent = data.message;
+      }
+    })
+    .catch(() => { errEl.textContent = 'Network error. Try again.'; });
+  });
+
+  // =====================================================
+  // HELPERS / PRODUCT DATA
+  // =====================================================
+  function num(v){ v = parseFloat(v); return isNaN(v) ? 0 : v; }
+  function formatUSD(v){ return num(v).toLocaleString('en-US', { style:'currency', currency:'USD' }); }
+
+  // ---- selected currency: prices are stored in USD, shown in the chosen currency ----
+  function currentCurrency(){ return $('#currencySelect').val() || 'USD'; }
+  function currentRate(){
+    var r = parseFloat((typeof exchange_rates !== 'undefined' && exchange_rates) ? exchange_rates[currentCurrency()] : 1);
+    return r > 0 ? r : 1;
+  }
+  // takes an amount in USD, returns text in the selected currency
+  function formatMoney(usd){
+    var cur = currentCurrency();
+    var v = num(usd) * currentRate();
+    if (cur === 'USD') return formatUSD(v);
+    return cur + ' ' + v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+
+  var product_json = '{{ product_json }}';
+  if (!product_json || product_json === "{}") product_json = {};
+  else {
+    product_json = product_json.replaceAll('&quot;','"');
+    product_json = $.parseJSON(product_json);
+  }
+  var prod_arr = {};
+  if (Object.keys(product_json).length){
+    Object.keys(product_json).forEach(k=>{
+      prod_arr[product_json[k].id] = product_json[k];
+    });
+  }
+
+  // =====================================================
+  // AFTER A SALE: clear the cart, receipts print in the background
+  // Print problems are shown here on screen (not in the server terminal)
+  // =====================================================
+  var printWatch = {};     // job id -> receipt number (jobs still being polled)
+  var printReceipts = {};  // job id -> receipt number (kept for Retry)
+  var printTimer = null;
+
+  // opts: { title, detail, cls, retry, dismiss }
+  // All text goes in with .text() so server messages can never inject HTML.
+  function printNote(id, opts){
+    var $n = $('#print-note-' + id);
+    if (!$n.length){
+      $n = $('<div>').attr('id', 'print-note-' + id).addClass('alert py-2 px-3 mb-2 shadow-sm');
+      $('#print-status').append($n);
+    }
+    $n.removeClass('alert-info alert-success alert-danger alert-warning').addClass(opts.cls).empty();
+
+    $('<div>').addClass('print-note-title').text(opts.title).appendTo($n);
+    if (opts.detail){
+      $('<div>').addClass('print-note-detail').text(opts.detail).appendTo($n);
+    }
+    if (opts.retry || opts.dismiss){
+      var $a = $('<div>').addClass('print-note-actions').appendTo($n);
+      if (opts.retry){
+        $('<button type="button">').addClass('btn btn-sm btn-light me-2 print-retry')
+          .attr('data-id', id).text('Retry').appendTo($a);
+      }
+      if (opts.dismiss){
+        $('<button type="button">').addClass('btn btn-sm btn-outline-light print-dismiss')
+          .attr('data-id', id).text('Dismiss').appendTo($a);
+      }
+    }
+  }
+
+  function watchPrintJob(jobId, receipt){
+    if (!jobId) return;
+    printWatch[jobId] = receipt;
+    printReceipts[jobId] = receipt;
+    printNote(jobId, { title: 'Receipt ' + receipt + ' queued…', cls: 'alert-info' });
+    if (!printTimer) printTimer = setInterval(pollPrintJobs, 2000);
+  }
+
+  function pollPrintJobs(){
+    var ids = Object.keys(printWatch);
+    if (!ids.length){ clearInterval(printTimer); printTimer = null; return; }
+
+    $.getJSON("{% url 'print-job-status' %}", { ids: ids.join(',') }, function(resp){
+      resp.jobs.forEach(function(j){
+        var attemptTxt = (j.attempts && j.max_attempts)
+          ? ' (attempt ' + j.attempts + ' of ' + j.max_attempts + ')' : '';
+
+        if (j.status === 'done'){
+          printNote(j.id, { title: 'Receipt ' + j.receipt + ' printed', cls: 'alert-success' });
+          delete printWatch[j.id];
+          setTimeout(function(){
+            $('#print-note-' + j.id).fadeOut(400, function(){ $(this).remove(); });
+          }, 3000);
+
+        } else if (j.status === 'failed'){
+          // final failure: stays on screen until the cashier retries or dismisses it
+          printNote(j.id, {
+            title: 'Receipt ' + j.receipt + ' was NOT printed',
+            detail: j.error || 'Check the printer, then tap Retry.',
+            cls: 'alert-danger',
+            retry: true,
+            dismiss: true
+          });
+          delete printWatch[j.id];
+
+        } else if (j.status === 'printing' && j.error){
+          // an attempt already failed and the server is trying again: say so right away
+          printNote(j.id, {
+            title: 'Receipt ' + j.receipt + ': printer problem, retrying…' + attemptTxt,
+            detail: j.error,
+            cls: 'alert-warning'
+          });
+
+        } else if (j.status === 'printing'){
+          printNote(j.id, { title: 'Printing receipt ' + j.receipt + '…' + attemptTxt, cls: 'alert-info' });
+        }
+      });
+    }).fail(function(){
+      // network blip: keep polling, the next tick will try again
+    });
+  }
+
+  $(document).on('click', '.print-retry', function(){
+    var id = $(this).data('id');
+    var receipt = printReceipts[id] || '';
+    postJSON("{% url 'print-job-retry' %}", { id: id }).then(function(data){
+      if (data.status === 'success') watchPrintJob(id, receipt);
+      else printNote(id, {
+        title: 'Retry failed',
+        detail: data.message || '',
+        cls: 'alert-danger',
+        retry: true,
+        dismiss: true
+      });
+    }).catch(function(){
+      printNote(id, {
+        title: 'Network error. Try again.',
+        cls: 'alert-danger',
+        retry: true,
+        dismiss: true
+      });
+    });
+  });
+
+  $(document).on('click', '.print-dismiss', function(){
+    var id = $(this).data('id');
+    $('#print-note-' + id).fadeOut(200, function(){ $(this).remove(); });
+  });
+
+  // Clear the cart in place so the next sale can start immediately
+  function resetSale(){
+    $('#POS-field table tbody').empty();
+    $('[name="customer_name"]').val('');
+    $('[name="tendered_amount"], [name="amount_change"]').val('0');
+    $('#product-id').val('').trigger('change');
+    $('#product-qty').val(1);
+    calc();
+    var m = document.getElementById('uni_modal');
+    var inst = m && bootstrap.Modal.getInstance(m);
+    if (inst) inst.hide();
+  }
+
+  function updateCartScroll(){
+    var $wrap = $('#cart-scroll');
+    var $rows = $wrap.find('tbody tr');
+    if ($rows.length > 5){
+      var h = $wrap.find('thead').outerHeight();
+      $rows.slice(0, 5).each(function(){ h += $(this).outerHeight(); });
+      $wrap.css({ 'max-height': h + 'px', 'overflow-y': 'auto' });
+    } else {
+      $wrap.css({ 'max-height': '', 'overflow-y': '' });
+    }
+  }
+
+  function calc(){
+    var sub_total = 0;
+    var inclusive_tax_total = 0;
+    var exclusive_tax_total = 0;
+    $('#POS-field table tbody tr').each(function(){
+      var $tr = $(this);
+      var price = num($tr.find('[name="price[]"]').val());
+      var qty = num($tr.find('[name="qty[]"]').val());
+      if (qty <= 0) qty = 0;
+      var product_id = $tr.find('[name="product_id[]"]').val();
+      var p = prod_arr[product_id] || {};
+      var incl_rate = num(p.inclusive_tax);
+      var excl_rate = num(p.exclusive_tax);
+      var line_subtotal = price * qty;
+      var line_incl_tax = line_subtotal * (incl_rate/100);
+      var line_excl_tax = line_subtotal * (excl_rate/100);
+      $tr.find('.product_price').text(formatMoney(price));
+      $tr.find('.product_total').text(formatMoney(line_subtotal));
+      sub_total += line_subtotal;
+      inclusive_tax_total += line_incl_tax;
+      exclusive_tax_total += line_excl_tax;
+    });
+
+    var grand_total = sub_total;
+    sub_total = sub_total - exclusive_tax_total;
+
+    var cur = currentCurrency();
+    $('#th-price').text('Price (' + cur + ')');
+    $('#th-total').text('Line Total (' + cur + ')');
+    $('#sub_total').text( formatMoney(sub_total) );
+    $('#inclusive_tax_amount').text( formatMoney(inclusive_tax_total) );
+    $('#exclusive_tax_amount').text( formatMoney(exclusive_tax_total) );
+    $('#grand_total').text( formatMoney(grand_total) );
+    // update hidden inputs (always raw USD numbers, the server converts)
+    $('[name="sub_total"]').val( sub_total.toFixed(2) );
+    $('[name="inclusive_tax_amount"]').val( inclusive_tax_total.toFixed(2) );
+    $('[name="exclusive_tax_amount"]').val( exclusive_tax_total.toFixed(2) );
+    $('[name="grand_total"]').val( grand_total.toFixed(2) );
+    updateCartScroll();
+  }
+
+  // ---------- dom ready ----------
+  $(function(){
+    // product picker
+    $('#product-id').select2({ placeholder:"Please Select Product here", width:'100%' });
+
+    // changing the currency recalculates every price and total straight away
+    $('#currencySelect').on('change', calc);
+
+    // add item
+    $('#add_item').click(function(){
+      var id  = $('#product-id').val();
+      var qty = $('#product-qty').val();
+      if (!id || !qty){ alert("Please Select Product!"); return; }
+      if (!prod_arr[id]){ alert("Undefined Product"); return; }
+
+      // if the product is already in the cart, add to its quantity and move it to the top
+      var $existingRow = $('#POS-field table tbody input[name="product_id[]"]')
+        .filter(function(){ return $(this).val() == id; })
+        .closest('tr');
+
+      if ($existingRow.length > 0){
+        var $qtyInput = $existingRow.find('[name="qty[]"]');
+        $qtyInput.val( num($qtyInput.val()) + num(qty) );
+
+        // move to the top of the cart
+        $existingRow.prependTo('#POS-field table tbody');
+        $('#cart-scroll').scrollTop(0);
+
+        $('#product-id').val('').trigger('change');
+        $('#product-qty').val(1);
+        calc();
+        return;
+      }
+
+      var data = prod_arr[id];
+      var tr = $($('noscript#item-clone').html()).clone();
+
+      tr.find('[name="product_id[]"]').val(id);
+      tr.find('[name="qty[]"]').val(qty);
+      tr.find('[name="price[]"]').val(num(data.price));
+      tr.find('.product_name').html(
+        `${data.name}<br><small>Incl: ${num(data.inclusive_tax)}% &nbsp; Excl: ${num(data.exclusive_tax)}%</small>`
+      );
+      tr.find('.product_price').text( formatMoney(data.price) );
+      tr.find('.product_total').text( formatMoney(num(data.price) * num(qty)) );
+
+      $('#POS-field table tbody').append(tr);
+      $('#product-id').val('').trigger('change');
+      $('#product-qty').val(1);
+
+      // listeners
+      tr.find('[name="qty[]"]').on('input keyup change', function(){
+        // keep qty integer >= 1
+        var v = Math.max(1, parseInt($(this).val() || "1", 10));
+        $(this).val(v);
+        calc();
+      });
+      tr.find('.rem-item').click(function(){ tr.remove(); calc(); });
+
+      calc();
+    });
+
+    // checkout (opens your checkout modal)
+    $('#check_out').click(function(){
+      calc(); // ensure fresh numbers
+      if ($('#POS-field table tbody tr').length <= 0){
+        alert("Add at least 1 product first!");
+        return;
+      }
+      var grand = $('[name="grand_total"]').val() || "0";
+      var cname = $('[name="customer_name"]').val() || "";
+      var currency = $('#currencySelect').val() || "USD";
+      // pass numbers (not formatted) to the modal
+      uni_modal(
+        "Checkout",
+        "{% url 'checkout-modal' %}?grand_total="
+        + encodeURIComponent(grand)
+        + "&customer_name="
+        + encodeURIComponent(cname)
+        + "&currency="
+        + encodeURIComponent(currency)
+      );
+    });
+
+    // form submit -> save-pos (kept as the original AJAX/FormData flow)
+    $('#pos-form').submit(function(e){
+      e.preventDefault();
+      var _this = $(this);
+      $('.err-msg').remove();
+      var el = $('<div>').addClass("alert alert-danger err-msg").hide();
+
+      if (_this[0].checkValidity() === false){
+        _this[0].reportValidity();
+        return;
+      }
+
+      calc(); // final recalc before submit
+
+      start_loader();
+      $.ajax({
+        headers: { "X-CSRFToken": '{{ csrf_token }}' },
+        url: "{% url 'save-pos' %}",
+        data: new FormData(_this[0]),
+        cache: false,
+        contentType: false,
+        processData: false,
+        method: 'POST',
+        type: 'POST',
+        dataType: 'json',
+        error: err => { console.log(err); end_loader(); },
+        success: function(resp){
+          end_loader();
+          if (typeof resp === 'object' && resp.status === 'success'){
+
+            watchPrintJob(resp.print_job_id, resp.receipt_number);
+
+            // the sale saved but the print job could not even be queued
+            if (!resp.print_job_id){
+              printNote('noqueue-' + resp.sale_id, {
+                title: 'Receipt ' + resp.receipt_number + ' was NOT printed',
+                detail: 'The sale is saved, but the receipt could not be queued for printing.',
+                cls: 'alert-danger',
+                dismiss: true
+              });
+            }
+
+            resetSale();
+            return;
+          }
+          if (resp.status === 'failed' && (resp.msg || resp.error)){
+            el.text(resp.msg || resp.error);
+          } else {
+            el.text("An error occurred");
+            console.error(resp);
+          }
+          _this.prepend(el);
+          el.show('slow');
+          $("html, body, .modal").scrollTop(0);
+        }
+      });
+    });
+  });
+</script>
+{% endblock ScriptBlock %}

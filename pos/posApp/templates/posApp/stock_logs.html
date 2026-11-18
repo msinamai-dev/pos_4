@@ -1,0 +1,50 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <h4>📋 Stock Update History</h4>
+        <div class="table-responsive mt-3">
+            <table class="table pos-table">
+                <thead>
+                    <tr>
+                       
+                        <th>User</th>
+                        <th>Product</th>
+                        <th>Old Stock</th>
+                        <th>Added</th>
+                        <th>Removed</th>
+                        <th>New Stock</th>
+                        <th>Old Price</th>
+                        <th>New Price</th>
+                        <th>Old Cost</th>
+                        <th>New Cost</th>
+                        
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for update in stock_updates %}
+                    <tr>
+                        <!--<td>{{ update.timestamp }}</td> -->
+                        <td>{{ update.added_by.username }}</td>
+                        <td>{{ update.product.name }}</td>
+                        <td>{{ update.previous_stock }}</td>
+                        <td>{{ update.quantity_added }}</td>
+                        <td>{{ update.quantity_removed }}</td>
+                        <td>{{ update.new_stock }}</td>
+                        <td>{{ update.previous_price }}</td>
+                        <td>{{ update.new_price }}</td>
+                        <td>{{ update.previous_cprice }}</td>
+                        <td>{{ update.new_cprice }}</td>
+                      
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center">No stock updates yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}

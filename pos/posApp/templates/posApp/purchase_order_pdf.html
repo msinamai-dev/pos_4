@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Purchase Order {{ order.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { text-align: center; }
+        p { margin: 5px 0; }
+        hr { margin: 20px 0; }
+        .signature { display: flex; justify-content: space-between; margin-top: 50px; }
+        .signature div { text-align: center; }
+        .signature p.line { border-bottom: 1px solid #000; width: 200px; margin: auto; padding-top: 30px; }
+    </style>
+</head>
+<body>
+    <div>
+        <h2>{{ shop_name|upper }} <b>-</b>
+ {% if branch_name %}{{ branch_name }}{% else %}-{% endif %}
+ </h2>
+
+    </div>
+    <h2>PURCHASE ORDER NOTE #{{ order.id }}</h2>
+    <p><strong>Supplier:</strong> {{ order.supplier.name|default:"N/A" }}</p>
+    <p><strong>Product:</strong> {{ order.product.name|default:"N/A" }}</p>
+    <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+    <p><strong>Cost Price:</strong> ${{ order.cost_price|floatformat:2 }}</p>
+    <p><strong>Discount:</strong> {{ discount }}%</p>
+    <p><strong>Total Cost:</strong> ${{ total_cost|floatformat:2 }}</p>
+    <p><strong>Payment Method:</strong> {{ order.payment_method|capfirst }}</p>
+
+    {% if order.payment_method == 'credit' %}
+        {% if credit %}
+            <p><strong>Credit Status:</strong> {{ credit.status|capfirst }}</p>
+            <p><strong>Paid Amount:</strong> ${{ credit.paid_amount|floatformat:2 }}</p>
+            <p><strong>Remaining Amount:</strong> ${{ credit.remaining_amount|floatformat:2 }}</p>
+        {% endif %}
+        <p><strong>Payment Due Date:</strong> {{ due_date|date:"F j, Y" }}</p>
+    {% endif %}
+
+    <p><strong>Date:</strong> {{ order.date|date:"F j, Y" }}</p>
+    <p><strong>Added By:</strong> {{ order.added_by.username }}</p>
+
+    <div class="signature">
+        <div>
+            <p><strong>Supplier Signature:</strong></p>
+            <p class="line">&nbsp;</p>
+        </div>
+        <div>
+            <p><strong>Received By:</strong></p>
+            <p class="line">&nbsp;</p>
+        </div>
+    </div>
+</body>
+</html>

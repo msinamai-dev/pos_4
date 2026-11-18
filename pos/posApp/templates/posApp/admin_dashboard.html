@@ -1,0 +1,278 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .an {
+    --an-border: #e5e7eb;
+    --an-muted: #6b7280;
+    --an-text: #111827;
+    --an-soft: #f3f4f6;
+    --an-accent: #1d5f8a;
+    --an-green: #15803d;
+    --an-red: #dc2626;
+    --an-amber: #d97706;
+    color: var(--an-text);
+    font-size: 14px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--an-border);
+    border-radius: 10px;
+    padding: 0 24px 28px;
+    min-width: 0;
+  }
+
+  /* header */
+  .an-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 10px; }
+  .an-crumb { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--an-border); border-radius: 6px; padding: 4px 10px; font-size: .85rem; background: #fff; }
+  .an-crumb small { color: var(--an-muted); }
+
+  .an-btn { height: 30px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--an-accent); background: var(--an-accent); color: #fff; font-size: .8rem; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .an-btn:hover { color: #fff; opacity: .92; }
+  .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
+  .an-btn.ghost:hover { color: var(--an-text); }
+
+  /* tabs */
+  .an-tabbar { padding: 4px 0 18px; }
+  .an-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--an-border); background: var(--an-soft); border-radius: 8px; flex-wrap: wrap; }
+  .an-tab { border: 0; background: transparent; padding: 5px 14px; border-radius: 6px; font-size: .82rem; color: var(--an-muted); }
+  .an-tab:hover { color: var(--an-text); }
+  .an-tab.active { background: #fff; color: var(--an-text); box-shadow: 0 0 0 1px var(--an-border); font-weight: 500; }
+  .an-tab .dot { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--an-red); color: #fff; font-size: .68rem; line-height: 17px; text-align: center; }
+
+  .an-panel { display: none; }
+  .an-panel.active { display: block; }
+
+  /* headings, stats */
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 2px 0 16px; }
+  .an h3.sub { font-size: .95rem; font-weight: 600; margin: 0 0 12px; }
+  .an-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 28px; margin-bottom: 28px; }
+  .an-stats.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .an-stat .l { color: var(--an-muted); font-size: .8rem; }
+  .an-stat .v { font-size: 1.5rem; font-weight: 600; margin-top: 6px; line-height: 1.15; }
+  .an-stat .v.sm { font-size: 1.05rem; }
+  .an-stat .v.pos { color: var(--an-green); }
+  .an-stat .v.neg { color: var(--an-red); }
+  .an-stat .v.warn { color: var(--an-amber); }
+  .an-stat .n { color: var(--an-muted); font-size: .75rem; margin-top: 4px; }
+  .an-stat .n a { color: var(--an-accent); text-decoration: none; }
+  .an-stat .n a:hover { text-decoration: underline; }
+
+  /* cards */
+  .an-card { border: 1px solid var(--an-border); border-radius: 10px; padding: 14px 16px; background: #fff; min-width: 0; }
+  .an-card-title { font-weight: 600; font-size: .85rem; margin-bottom: 10px; }
+  .an-card-title small { color: var(--an-muted); font-weight: 400; margin-left: 6px; }
+  .an-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; margin-bottom: 14px; }
+  .an-chart-box { position: relative; height: 240px; }
+
+  .an-kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-kv:last-child { border-bottom: 0; }
+  .an-kv.b { font-weight: 600; }
+  .an-kv span:last-child { font-variant-numeric: tabular-nums; }
+
+  .an-table { width: 100%; border-collapse: collapse; }
+  .an-table th { color: var(--an-muted); font-weight: 400; font-size: .78rem; text-align: left; padding: 8px 0; border-bottom: 1px solid var(--an-border); }
+  .an-table th.r, .an-table td.r { text-align: right; }
+  .an-table td { padding: 9px 0; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-table tr:last-child td { border-bottom: 0; }
+  .an-table .b { font-weight: 600; }
+  .an-table-scroll { overflow-x: auto; }
+  .an-empty { color: var(--an-muted); font-size: .85rem; padding: 12px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .74rem; font-weight: 500; }
+  .pill.up { background: #dcfce7; color: #166534; }
+  .pill.down { background: #fee2e2; color: #991b1b; }
+  .pill.flat { background: var(--an-soft); color: var(--an-muted); }
+
+  @media (max-width: 900px) { .an-duo { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) {
+    .an { padding: 0 14px 22px; }
+    .an-stats, .an-stats.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+
+<div class="an mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+
+  <!-- ===== header ===== -->
+  <div class="an-head">
+    <span class="an-crumb">
+      <i class="bi bi-shield-check"></i> Admin
+      <small>Users, subscriptions and activity across all shops</small>
+    </span>
+    <a href="{% url 'todays_logins' %}" class="an-btn"><i class="bi bi-clock-history"></i> Today's logins</a>
+  </div>
+
+  <!-- ===== tabs ===== -->
+  <div class="an-tabbar">
+    <div class="an-tabs" role="tablist">
+      <button type="button" class="an-tab active" data-tab="overview">Overview</button>
+      <button type="button" class="an-tab" data-tab="users">Users</button>
+      <button type="button" class="an-tab" data-tab="security">Security
+        {% if short_sessions_count or multiple_ips_count %}<span class="dot">{{ short_sessions_count|add:multiple_ips_count }}</span>{% endif %}
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="an-panel active" id="tab-overview">
+    <h2 class="title">Overview</h2>
+
+    <div class="an-stats">
+      <div class="an-stat"><div class="l">Total users</div><div class="v">{{ total_users|intcomma }}</div><div class="n">Registered users</div></div>
+      <div class="an-stat"><div class="l">Active subscribers</div><div class="v pos">{{ total_subscribers|intcomma }}</div><div class="n">Currently active plans</div></div>
+      <div class="an-stat"><div class="l">Expired subscribers</div><div class="v neg">{{ expired_subscribers|intcomma }}</div><div class="n">Expired plans</div></div>
+      <div class="an-stat"><div class="l">Countries</div><div class="v">{{ location_counts|length }}</div><div class="n">User distribution</div></div>
+
+      <div class="an-stat"><div class="l">Total shops</div><div class="v">{{ total_shops|intcomma }}</div><div class="n">Registered shops</div></div>
+      <div class="an-stat"><div class="l">Total branches</div><div class="v">{{ total_branches|intcomma }}</div><div class="n">Across all shops</div></div>
+      <div class="an-stat">
+        <div class="l">Short sessions</div>
+        <div class="v {% if short_sessions_count %}warn{% endif %}">{{ short_sessions_count }}</div>
+        <div class="n"><a href="{% url 'suspicious_short_sessions' %}">View details</a></div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Multiple IPs</div>
+        <div class="v {% if multiple_ips_count %}warn{% endif %}">{{ multiple_ips_count }}</div>
+        <div class="n"><a href="{% url 'suspicious_multiple_ips' %}">View details</a></div>
+      </div>
+    </div>
+
+    <div class="an-duo">
+      <div class="an-card">
+        <div class="an-card-title">Users by country <small>top 8</small></div>
+        <div class="an-chart-box"><canvas id="countryChart"></canvas></div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-title">Summary</div>
+        <div class="an-kv"><span>Total users</span><span>{{ total_users|intcomma }}</span></div>
+        <div class="an-kv"><span>Active subscribers</span><span>{{ total_subscribers|intcomma }}</span></div>
+        <div class="an-kv"><span>Expired subscribers</span><span>{{ expired_subscribers|intcomma }}</span></div>
+        <div class="an-kv"><span>Shops</span><span>{{ total_shops|intcomma }}</span></div>
+        <div class="an-kv b"><span>Branches</span><span>{{ total_branches|intcomma }}</span></div>
+      </div>
+    </div>
+
+    {% if busiest_shop %}
+    <div class="an-card">
+      <div class="an-card-title">Most active shop</div>
+      <div class="an-kv b">
+        <span>{{ busiest_shop.shop__name }}</span>
+        <span>{{ busiest_shop.user_count }} linked user{{ busiest_shop.user_count|pluralize }}</span>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- ================= USERS ================= -->
+  <section class="an-panel" id="tab-users">
+    <h2 class="title">Users</h2>
+
+    <div class="an-stats three">
+      <div class="an-stat"><div class="l">Total users</div><div class="v">{{ total_users|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Active subscribers</div><div class="v pos">{{ total_subscribers|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Expired subscribers</div><div class="v neg">{{ expired_subscribers|intcomma }}</div></div>
+    </div>
+
+    <h3 class="sub">Users by country</h3>
+    <div class="an-table-scroll">
+      <table class="an-table table-no-tools">
+        <thead>
+          <tr><th>Country</th><th class="r">Number of users</th></tr>
+        </thead>
+        <tbody>
+          {% for loc in location_counts %}
+          <tr>
+            <td class="b">{{ loc.country }}</td>
+            <td class="r">{{ loc.total|intcomma }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" class="an-empty">No country data available</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= SECURITY ================= -->
+  <section class="an-panel" id="tab-security">
+    <h2 class="title">Suspicious activity</h2>
+
+    <div class="an-stats three">
+      <div class="an-stat">
+        <div class="l">Short sessions</div>
+        <div class="v {% if short_sessions_count %}warn{% endif %}">{{ short_sessions_count }}</div>
+        <div class="n">Sessions of one minute or less &middot; <a href="{% url 'suspicious_short_sessions' %}">View details</a></div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Multiple IPs</div>
+        <div class="v {% if multiple_ips_count %}warn{% endif %}">{{ multiple_ips_count }}</div>
+        <div class="n">Users on more than one IP in 24 hours &middot; <a href="{% url 'suspicious_multiple_ips' %}">View details</a></div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Status</div>
+        <div class="v sm">
+          {% if short_sessions_count or multiple_ips_count %}
+            <span class="pill down">Needs review</span>
+          {% else %}
+            <span class="pill up">All clear</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <a href="{% url 'suspicious_short_sessions' %}" class="an-btn ghost">Short sessions</a>
+      <a href="{% url 'suspicious_multiple_ips' %}" class="an-btn ghost">Multiple IPs</a>
+      <a href="{% url 'todays_logins' %}" class="an-btn ghost">Today's logins</a>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const PALETTE = ['#1d5f8a', '#0e9f6e', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#db2777'];
+  const charts = {};
+
+  /* ---------- tabs ---------- */
+  const tabs = document.querySelectorAll('.an-tab');
+  const panels = document.querySelectorAll('.an-panel');
+
+  function showTab(name) {
+    if (!document.getElementById('tab-' + name)) name = 'overview';
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+    Object.values(charts).forEach(c => c && c.resize());
+    history.replaceState(null, '', location.search + '#' + name);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  showTab((location.hash || '').replace('#', '') || 'overview');
+
+  /* ---------- users by country ---------- */
+  const labels = {{ country_labels|safe }};
+  const totals = {{ country_totals|safe }};
+  const el = document.getElementById('countryChart');
+  if (el && labels.length) {
+    charts.country = new Chart(el.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ data: totals, backgroundColor: labels.map((_, i) => PALETTE[i % PALETTE.length]), borderRadius: 4, maxBarThickness: 32 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#6b7280' } },
+          y: { beginAtZero: true, grid: { color: '#f1f2f4' }, ticks: { precision: 0, font: { size: 10 }, color: '#6b7280' } }
+        }
+      }
+    });
+  } else if (el) {
+    el.parentElement.innerHTML = '<div class="an-empty">No country data available</div>';
+  }
+});
+</script>
+{% endblock pageContent %}

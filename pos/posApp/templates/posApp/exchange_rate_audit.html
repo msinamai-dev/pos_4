@@ -1,0 +1,141 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <h4> Exchange Rate Audit Log</h4>
+
+        <!-- Filters -->
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-md-5">
+                <label for="searchBox">Search</label>
+                <input type="text" id="searchBox" class="form-control" placeholder="Currency, action, user or date...">
+            </div>
+            <div class="col-md-3">
+                <label for="currencyFilter">Currency</label>
+                <select id="currencyFilter" class="form-control">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-secondary" id="resetBtn">Reset</button>
+            </div>
+        </div>
+
+        <!-- Summary cards (calculated from the rows currently shown) -->
+        <div class="row mb-3">
+            <div class="col-md-3 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Changes</div>
+                    <h4 id="sumChanges">0</h4>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Currencies</div>
+                    <h4 id="sumCurrencies">0</h4>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Rate Increases</div>
+                    <h4 class="text-success" id="sumUp">&#9650; 0</h4>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Rate Decreases</div>
+                    <h4 class="text-danger" id="sumDown">&#9660; 0</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <h5>Details</h5>
+        <div class="table-responsive mt-2" style="max-height: 550px; overflow-y: auto;">
+            <table class="table pos-table" id="auditTable">
+                <thead style="position: sticky; top: 0; z-index: 2;">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Currency</th>
+                        <th class="text-end">Old Rate</th>
+                        <th class="text-end">New Rate</th>
+                        <th>Action</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in audits %}
+                    <tr data-currency="{{ log.currency }}"
+                        data-direction="{% if log.old_rate and log.new_rate > log.old_rate %}up{% elif log.old_rate and log.new_rate < log.old_rate %}down{% else %}none{% endif %}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                        <td><span class="badge bg-dark">{{ log.currency }}</span></td>
+                        <td class="text-end">{{ log.old_rate|default:"-" }}</td>
+                        <td class="text-end fw-semibold
+                            {% if log.old_rate and log.new_rate > log.old_rate %}text-success
+                            {% elif log.old_rate and log.new_rate < log.old_rate %}text-danger{% endif %}">
+                            {% if log.old_rate and log.new_rate > log.old_rate %}&#9650;
+                            {% elif log.old_rate and log.new_rate < log.old_rate %}&#9660;{% endif %}
+                            {{ log.new_rate }}
+                        </td>
+                        <td><span class="badge bg-info text-dark">{{ log.action }}</span></td>
+                        <td>{{ log.changed_by|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted">No exchange rate changes recorded.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const rows = document.querySelectorAll('#auditTable tbody tr[data-currency]');
+const searchBox = document.getElementById('searchBox');
+const currencyFilter = document.getElementById('currencyFilter');
+
+// fill the currency dropdown from the rows
+[...new Set([...rows].map(r => r.dataset.currency))].sort().forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    currencyFilter.appendChild(opt);
+});
+
+function applyFilters() {
+    const q = searchBox.value.toLowerCase();
+    const cur = currencyFilter.value;
+    let count = 0, up = 0, down = 0;
+    const currencies = new Set();
+
+    rows.forEach(function (row) {
+        const show = row.textContent.toLowerCase().includes(q) &&
+                     (!cur || row.dataset.currency === cur);
+        row.style.display = show ? '' : 'none';
+        if (show) {
+            count++;
+            currencies.add(row.dataset.currency);
+            if (row.dataset.direction === 'up') up++;
+            if (row.dataset.direction === 'down') down++;
+        }
+    });
+
+    document.getElementById('sumChanges').textContent = count;
+    document.getElementById('sumCurrencies').textContent = currencies.size;
+    document.getElementById('sumUp').innerHTML = '&#9650; ' + up;
+    document.getElementById('sumDown').innerHTML = '&#9660; ' + down;
+}
+
+searchBox.addEventListener('input', applyFilters);
+currencyFilter.addEventListener('change', applyFilters);
+document.getElementById('resetBtn').addEventListener('click', function () {
+    searchBox.value = '';
+    currencyFilter.value = '';
+    applyFilters();
+});
+
+applyFilters();
+</script>
+{% endblock pageContent %}

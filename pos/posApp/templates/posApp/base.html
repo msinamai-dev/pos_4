@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> {% if page_title %}
+    <title>{{ page_title }} |Page</title>
+    {% else %}
+    <title>Point Of Sale</title>
+    {% endif %}
+    <link rel="stylesheet" href="{% static 'posApp/assets/bootstrap/css/bootstrap.min.css' %}">
+
+    <!-- plugins:css -->
+    <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/vendors/mdi/css/materialdesignicons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/vendors/css/vendor.bundle.base.css' %}">
+    <!-- Inside <head> of base.html -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- endinject -->
+    <!-- Plugin css for this page -->
+    <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/vendors/flag-icon-css/css/flag-icon.min.css' %}">
+    <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/vendors/jvectormap/jquery-jvectormap.css' %}">
+    
+    <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/css/demo/style.css' %}">
+    <link rel="stylesheet" href="{% static 'posApp/assets/select2/dist/css/select2.min.css' %}">
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"> -->
+    <link rel="stylesheet" href="{% static 'posApp/assets/default/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'posAPP/css/consistent-tables.css' %}">
+    <!-- End layout styles -->
+    <link rel="shortcut icon" href="{% static 'posAPP/ICOM.png' %}" />
+    <script src="{% static 'posApp/assets/default/js/jquery-3.6.0.min.js' %}"></script>
+    <!-- Bootstrap loaded ONCE (the bundle already includes Popper). Loading bootstrap.min.js
+         AND the bundle together made two copies fight over modals and left the page locked. -->
+    <script src="{% static 'posApp/assets/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'posApp/assets/bootstrap/js/popper.min.js' %}"></script>
+</head>
+
+<body class="{{ request.user.profile.theme }}-mode">
+    <script src="{% static 'posApp/assets/material-admin/js/preloader.js' %}"></script>
+    <div class="body-wrapper" > 
+        <!-- Aside -->
+        {% block navigation %} {% include "posApp/navigation.html" %} {% endblock navigation %}
+        <!-- Aside -->
+
+        
+
+        <div class="main-wrapper mdc-drawer-app-content">
+           
+            <!-- Top Navigation -->
+            {% block TopNavigation %} {% include "posApp/TopNavigation.html" %}
+            
+            {% if user.is_authenticated %}
+    <!--<li class="nav-item">
+    <a class="nav-link"> Subscription: {{ remaining_days }} days left </a>
+    </li>>-->
+        {% endif %}
+            
+            {% endblock TopNavigation %}
+
+             
+            <!-- Top Navigation -->
+
+            <div class="page-wrapper mdc-toolbar-fixed-adjust">
+                <main class="content-wrapper">
+        <!-- Message -->
+                    {% if messages %}
+                    <div class="mdc-layout-grid py-1">
+                        <div class="mdc-layout-grid__inner">
+                            {% for message in messages %}
+                            <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+                                <div class="alert alert-{{message.tags}} w-100 rounded-0 mb-0">
+                                    <div class="d-flex w-100">
+                                        <div class="col-auto flex-shrink-1 flex-grow-1">{{ message }}</div>
+                                        <div class="col-auto text-center">
+                                            <button class="btn-close btn-sm text-sm" type="button" onclick="$(this).closest('.alert').remove()"></button>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- Message -->
+                    {% include "posApp/po_alerts_banner.html" %}
+                    <div class="mdc-layout-grid">
+                        <div class="mdc-layout-grid__inner">
+                            {% block pageContent %} {% endblock pageContent %}
+                        </div>
+                    </div>
+                </main>
+                <!-- partial:partials/_footer.html -->
+                <footer style="background-color: black; color: gold;">
+                    <div class="mdc-layout-grid">
+                        <div class="mdc-layout-grid__inner">
+                            <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                <span class="text-center text-sm-left d-block d-sm-inline-block tx-14">Copyright © <a href="https://www.sourcecodester.com/users/tips23" target="_blank"></a> {% now 'Y' %} version 2.2</span>
+                            </div>
+                            <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop d-flex justify-content-end">
+                                <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center tx-14" style="color: gold;" > <a href="https://thinkgoldtechnologies.co.zw/" target="_blank" >  </a> </span>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+                <!-- partial -->
+            </div>
+        </div>
+    </div>
+    {% block ScriptBlock %} {% endblock ScriptBlock %}
+    <div class="modal fade" id="uni_modal" role="dialog">
+        <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+            <div class="modal-content rounded-0">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                </div>
+                <div class="modal-body">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn  btn-sm btn-flat btn-primary rounded-0" id="submit" onclick="$('#uni_modal form').submit()">Save</button>
+                    <button type="button" class="btn btn-sm btn-flat btn-secondary rounded-0" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="confirm_modal" role="dialog">
+        <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+            <div class="modal-content rounded-0">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmation</h5>
+                </div>
+                <div class="modal-body">
+                    <div id="delete_content"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-flat btn-primary rounded-0" id='confirm' onclick="">Continue</button>
+                    <button type="button" class="btn btn-sm btn-flat btn-secondary rounded-0" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) themeToggle.addEventListener('click', () => {
+            fetch("{% url 'toggle_theme' %}")
+                .then(response => response.json())
+                .then(data => {
+                    document.body.className = data.theme + '-mode';
+                    document.getElementById('theme-toggle').textContent = data.theme === 'dark' ? '🌞' : '🌙';
+                });
+        });
+    </script>
+
+    <script>
+        window.start_loader = function() {
+            $('body').removeClass('loaded')
+        }
+        window.end_loader = function() {
+            $('body').addClass('loaded')
+        }
+        window.uni_modal = function($title = '', $url = '', $size = "") {
+            start_loader()
+            $.ajax({
+                url: $url,
+                error: err => {
+                    console.log()
+                    alert("An error occured")
+                },
+                success: function(resp) {
+                    if (resp) {
+                        $('#uni_modal .modal-title').html($title)
+                        $('#uni_modal .modal-body').html(resp)
+                        if ($size != '') {
+                            $('#uni_modal .modal-dialog').addClass($size + '  modal-dialog-centered')
+                        } else {
+                            $('#uni_modal .modal-dialog').removeAttr("class").addClass("modal-dialog modal-md modal-dialog-centered")
+                        }
+                        $('#uni_modal').modal({
+                            backdrop: 'static',
+                            keyboard: false,
+                            focus: true
+                        })
+                        $('#uni_modal').modal('show')
+                        end_loader()
+                    }
+                }
+            })
+        }
+        window._conf = function($msg = '', $func = '', $params = []) {
+            $('#confirm_modal #confirm').attr('onclick', $func + "(" + $params.join(',') + ")")
+            $('#confirm_modal .modal-body').html($msg)
+            $('#confirm_modal').modal('show')
+        }
+        $(function() {
+
+        })
+    </script>
+
+    <script src="{% static 'posAPP/js/table-tools.js' %}"></script>
+    <script src="{% static 'posApp/assets/material-admin/vendors/js/vendor.bundle.base.js' %}"></script>
+    <script src="{% static 'posApp/assets/material-admin/js/material.js' %}"></script>
+    <script src="{% static 'posApp/assets/material-admin/js/misc.js' %}"></script>
+    <script src="{% static 'posApp/assets/material-admin/js/dashboard.js' %}"></script>
+    <script src="{% static 'posApp/assets/select2/dist/js/select2.full.js' %}"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script> -->
+
+    <script>
+      
+      (function () {
+        function scheduleDismiss(el) {
+          if (el.__dismissScheduled) return;
+          el.__dismissScheduled = true;
+          setTimeout(function () {
+            $(el).fadeOut(400, function () { $(this).remove(); });
+          }, 4000);
+        }
+        function scan(root) {
+          $(root).find('.alert-success, .alert-info').addBack('.alert-success, .alert-info')
+                 .each(function () { scheduleDismiss(this); });
+        }
+
+        $(function () { scan(document.body); });   
+
+        // alerts added later by JavaScript (AJAX results)
+        new MutationObserver(function (mutations) {
+          mutations.forEach(function (m) {
+            m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); });
+          });
+        }).observe(document.body, { childList: true, subtree: true });
+      })();
+
+    
+      window.cleanupBackdrops = function () {
+        if (!document.querySelector('.modal.show')) {
+          $('.modal-backdrop').remove();
+          $('body').removeClass('modal-open').css({ overflow: '', paddingRight: '' });
+        }
+      };
+
+      window.closeModalSafely = function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        try {
+          var m = bootstrap.Modal.getInstance(el);
+          if (m) m.hide();
+        } catch (e) { console.error(e); }
+        setTimeout(function () {
+          if (!el.classList.contains('show')) {
+            el.style.display = 'none';
+            cleanupBackdrops();
+          }
+        }, 500);
+      };
+
+      $(document).on('hidden.bs.modal', function () { setTimeout(cleanupBackdrops, 100); });
+
+      
+      $(document).on('click', '.modal-backdrop', function () { cleanupBackdrops(); });
+    </script>
+</body>
+
+</html>

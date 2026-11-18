@@ -1,0 +1,8 @@
+{# Shown instead of the receipt right after checkout: nothing is displayed and the app returns to a new sale. #}
+<script>
+(function () {
+  document.querySelectorAll('.modal').forEach(function (m) { m.style.display = 'none'; });
+  document.querySelectorAll('.modal-backdrop').forEach(function (b) { b.style.display = 'none'; });
+  window.location.replace("{{ pos_url }}");
+})();
+</script>

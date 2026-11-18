@@ -1,0 +1,95 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <h4 class="card-title mb-0">Subscribe to {{ plan.name }}</h4>
+    <p class="text-muted mb-0">${{ plan.price }} for {{ plan.duration_days }} days</p>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card p-4" style="max-width:560px">
+
+    {% if fake_mode %}
+    <div class="alert alert-warning small">
+      <b>TEST MODE </b> No real money moves and no phone is contacted.<br>
+      EcoCash test numbers:
+      <code>0771111111</code> success ·
+      <code>0772222222</code> success after 10s ·
+      <code>0773333333</code> cancelled ·
+      <code>0774444444</code> failed
+    </div>
+    {% endif %}
+
+    <div class="border rounded p-3 mb-3">
+      <h6>Pay with EcoCash</h6>
+      <input id="phone" class="form-control mb-2" placeholder="EcoCash number e.g. 0771234567">
+      <button id="ecoBtn" class="btn btn-success w-100">Send payment request to my phone</button>
+    </div>
+
+    <div class="border rounded p-3 mb-3">
+      <h6>Pay with card (Visa / Mastercard)</h6>
+      <button id="cardBtn" class="btn btn-primary w-100">Pay by card</button>
+    </div>
+
+    <div id="msg" class="alert d-none"></div>
+  </div>
+</div>
+
+<script>
+const csrf = "{{ csrf_token }}";
+const msg = document.getElementById("msg");
+const statusUrl = "{% url 'payment-status' 0 %}";     
+
+function show(text, kind) {
+  msg.className = "alert alert-" + kind;
+  msg.textContent = text;
+}
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {"X-CSRFToken": csrf, "Content-Type": "application/json"},
+    body: JSON.stringify(body || {})
+  });
+  return r.json();
+}
+
+document.getElementById("ecoBtn").onclick = async () => {
+  const btn = document.getElementById("ecoBtn");
+  btn.disabled = true;
+  show("Sending request...", "info");
+  const res = await post("{% url 'pay-ecocash' plan.id %}", {phone: document.getElementById("phone").value});
+  if (res.status !== "success") { show(res.msg, "danger"); btn.disabled = false; return; }
+
+  show(res.msg + " Waiting for confirmation...", "info");
+  let tries = 0;
+  const timer = setInterval(async () => {
+    tries++;
+    const s = await (await fetch(statusUrl.replace(/0\/$/, res.payment_id + "/"))).json();
+    if (s.status === "paid") {
+      clearInterval(timer);
+      show("Payment confirmed! Redirecting...", "success");
+      window.location = "{% url 'my-subscription' %}";
+    } else if (s.status === "failed" || s.status === "cancelled") {
+      clearInterval(timer);
+      show("Payment was cancelled or failed. Please try again.", "danger");
+      btn.disabled = false;
+    } else if (tries > 45) {                     // about 3 minutes
+      clearInterval(timer);
+      show("We did not get a confirmation. If money left your account, refresh My Subscription in a minute.", "warning");
+      btn.disabled = false;
+    }
+  }, 4000);
+};
+
+document.getElementById("cardBtn").onclick = async () => {
+  show("Opening secure card page...", "info");
+  const res = await post("{% url 'pay-card' plan.id %}");
+  if (res.status === "success") window.location = res.redirect_url;
+  else show(res.msg, "danger");
+};
+</script>
+
+{% endblock pageContent %}

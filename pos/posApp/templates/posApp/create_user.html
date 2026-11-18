@@ -1,0 +1,123 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+
+<!-- Page header -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="card-title mb-0">Add a New User</h4>
+        <p class="mb-0 small">Create a login, assign a branch, pick a role and add any extra permissions.</p>
+      </div>
+      <a href="{% url 'user-list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to users</a>
+    </div>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12"><div id="alert-box"></div></div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card pos-form-card">
+    <form method="POST" id="create-user" class="pos-form" novalidate>
+      {% csrf_token %}
+
+      <!-- Account details -->
+      <section class="pos-form-section">
+        <h5 class="pos-form-section-title"><span class="pos-ico"><i class="bi bi-person-badge"></i></span> Account details</h5>
+        <p class="pos-form-section-sub">Sign-in information for the new user.</p>
+        <div class="pos-form-grid">
+          {% for field in user_form %}
+            {% if field.field.widget.input_type == "checkbox" %}
+              <div class="pos-field">
+                <div class="pos-switch-row">
+                  {{ field }}
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+              </div>
+            {% else %}
+              <div class="pos-field">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Profile, location and role -->
+      <section class="pos-form-section">
+        <h5 class="pos-form-section-title"><span class="pos-ico"><i class="bi bi-shop"></i></span> Profile, location &amp; role</h5>
+        <p class="pos-form-section-sub">Contact details, where this user works and what role they have.</p>
+        <div class="pos-form-grid">
+          {% for field in profile_form %}
+            {% if field.name != "permissions" %}
+              {% if field.field.widget.input_type == "checkbox" %}
+                <div class="pos-field">
+                  <div class="pos-switch-row">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  </div>
+                </div>
+              {% else %}
+                <div class="pos-field">
+                  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                  {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Extra permissions (grouped) -->
+      {% include "posApp/_permission_picker.html" %}
+
+      <div class="pos-form-actions">
+        <a href="{% url 'user-list' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+{% include "posApp/_permission_picker_js.html" %}
+<script>
+  // Turn {field: [errors]} from the server into readable text
+  function formatErrors(msg) {
+    if (typeof msg === 'string') return msg;
+    return Object.entries(msg).map(([field, errs]) => `${field}: ${[].concat(errs).join(', ')}`).join('<br>');
+  }
+
+  // AJAX submit
+  $('#create-user').submit(function (e) {
+    e.preventDefault();
+    $.ajax({
+      url: "{% url 'create-user' %}",
+      method: "POST",
+      data: $(this).serialize(),     // locked (role) boxes are disabled, so only extras are sent
+      success: function (resp) {
+        if (resp.status === 'success') {
+          $('#alert-box').html(`<div class="alert alert-success">${resp.message}</div>`);
+          setTimeout(() => window.location.href = resp.redirect_url, 1500);
+        } else {
+          $('#alert-box').html(`<div class="alert alert-danger">${formatErrors(resp.message)}</div>`);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      error: function (xhr) {
+        const msg = (xhr.responseJSON && (xhr.responseJSON.msg || xhr.responseJSON.message)) || 'An error occurred. Try again.';
+        $('#alert-box').html(`<div class="alert alert-danger">${msg}</div>`);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+{% endblock ScriptBlock %}

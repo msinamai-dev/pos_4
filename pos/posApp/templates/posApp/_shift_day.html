@@ -1,0 +1,77 @@
+{# Save as posApp/_shift_day.html (replaces the old one). Per-shift table first, then the day total. #}
+
+<!-- 1. PER SHIFT (one block per shift, one row per currency) -->
+<h6 class="fw-bold mb-2">Per shift (by user)</h6>
+<div class="table-responsive mb-4" style="max-height: 450px; overflow-y: auto;">
+  <table class="table pos-table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Opened</th>
+        <th>Closed</th>
+        <th>Currency</th>
+        <th class="text-end">Opening</th>
+        <th class="text-end">Sales</th>
+        <th class="text-end">Expenses</th>
+        <th class="text-end">Expected</th>
+        <th class="text-end">Counted</th>
+        <th class="text-end">Difference</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for shift in day.shifts %}
+        {% for l in shift.lines %}
+        <tr>
+          {% if forloop.first %}
+          <td rowspan="{{ shift.lines|length }}">{{ shift.user.username }}</td>
+          <td rowspan="{{ shift.lines|length }}" class="text-nowrap">{{ shift.opened_at|date:"H:i" }}</td>
+          <td rowspan="{{ shift.lines|length }}" class="text-nowrap">{{ shift.closed_at|date:"j M H:i" }}</td>
+          {% endif %}
+          <td class="fw-semibold">{{ l.currency }}</td>
+          <td class="text-end">{{ l.opening_amount|floatformat:2 }}</td>
+          <td class="text-end text-info">{{ l.sales_total|floatformat:2 }}</td>
+          <td class="text-end text-danger">{{ l.expenses_total|floatformat:2 }}</td>
+          <td class="text-end text-warning">{{ l.expected_amount|floatformat:2 }}</td>
+          <td class="text-end text-primary">{{ l.closing_amount|floatformat:2 }}</td>
+          <td class="text-end fw-bold {% if l.difference < 0 %}text-danger{% elif l.difference > 0 %}text-warning{% else %}text-success{% endif %}">
+            {{ l.difference|floatformat:2 }}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- 2. DAY TOTAL (all shifts of the day added together, per currency) -->
+<h6 class="fw-bold mb-2">Day total (all shifts, {{ day.date|date:"j M Y" }})</h6>
+<div class="table-responsive">
+  <table class="table pos-table mb-0">
+    <thead>
+      <tr>
+        <th>Currency</th>
+        <th class="text-end">Opening</th>
+        <th class="text-end">Sales</th>
+        <th class="text-end">Expenses</th>
+        <th class="text-end">Expected</th>
+        <th class="text-end">Counted</th>
+        <th class="text-end">Difference</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in day.totals %}
+      <tr>
+        <td class="fw-semibold">{{ t.currency }}</td>
+        <td class="text-end">{{ t.opening|floatformat:2 }}</td>
+        <td class="text-end text-info fw-semibold">{{ t.sales|floatformat:2 }}</td>
+        <td class="text-end text-danger fw-semibold">{{ t.expenses|floatformat:2 }}</td>
+        <td class="text-end text-warning fw-semibold">{{ t.expected|floatformat:2 }}</td>
+        <td class="text-end text-primary fw-semibold">{{ t.closing|floatformat:2 }}</td>
+        <td class="text-end fw-bold {% if t.difference < 0 %}text-danger{% elif t.difference > 0 %}text-warning{% else %}text-success{% endif %}">
+          {{ t.difference|floatformat:2 }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

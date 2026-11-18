@@ -1,0 +1,138 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+    <div class="mdc-card p-3">
+        <h4>📊 Stock Count Reports</h4>
+
+        <!-- Filters -->
+        <div class="row g-3 mb-3 align-items-end">
+            {% if branches %}
+            <div class="col-md-3">
+                <label for="branch-select">Branch</label>
+                <select id="branch-select" class="form-control">
+                    <option value="">All Branches</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if branch == selected_branch %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-2">
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="searchBox">Search</label>
+                <input type="text" id="searchBox" class="form-control" placeholder="User or date...">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-secondary" id="resetBtn">Reset</button>
+            </div>
+        </div>
+
+        <!-- Summary cards (calculated from the rows currently shown) -->
+        <div class="row mb-3">
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Count Reports</div>
+                    <h4 id="sumReports">0</h4>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Products Counted</div>
+                    <h4 class="text-success" id="sumProducts">0</h4>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="p-3 border rounded text-center h-100">
+                    <div class="text-muted">Latest Count</div>
+                    <h4 id="sumLatest">-</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <h5>Details</h5>
+        <div class="table-responsive mt-2" style="max-height: 550px; overflow-y: auto;">
+            <table class="table pos-table" id="reportsTable">
+                <thead style="position: sticky; top: 0; z-index: 2;">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Counted By</th>
+                        <th class="text-end">Products Counted</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr data-date="{{ report.timestamp|date:'Y-m-d' }}"
+                        data-products="{{ report.total_products|default:0 }}"
+                        data-datetime="{{ report.timestamp|date:'Y-m-d H:i' }}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ report.timestamp|date:"Y-m-d H:i" }}</td>
+                        <td>{{ report.user.username|default:"-" }}</td>
+                        <td class="text-end fw-semibold text-success">{{ report.total_products }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'view-stock-count-report' report.id %}" class="btn btn-sm btn-primary">View Report</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">No stock count reports found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+function applyFilters() {
+    const q = $('#searchBox').val().toLowerCase();
+    const start = $('#startDate').val();
+    const end = $('#endDate').val();
+    let reports = 0, products = 0, latest = '';
+
+    $('#reportsTable tbody tr[data-date]').each(function () {
+        const d = $(this).data('date');
+        const show = $(this).text().toLowerCase().includes(q) &&
+                     (!start || d >= start) &&
+                     (!end || d <= end);
+        $(this).toggle(show);
+        if (show) {
+            reports++;
+            products += parseInt($(this).data('products')) || 0;
+            const dt = String($(this).data('datetime'));
+            if (dt > latest) latest = dt;
+        }
+    });
+
+    $('#sumReports').text(reports);
+    $('#sumProducts').text(products);
+    $('#sumLatest').text(latest || '-');
+}
+
+$('#searchBox').on('input', applyFilters);
+$('#startDate, #endDate').on('change', applyFilters);
+$('#resetBtn').on('click', function () {
+    $('#searchBox, #startDate, #endDate').val('');
+    applyFilters();
+});
+
+// branch filter (superusers)
+$('#branch-select').on('change', function () {
+    let url = "{% url 'stock-count-reports' %}";
+    if ($(this).val()) url += "?branch=" + $(this).val();
+    window.location.href = url;
+});
+
+applyFilters();
+</script>
+{% endblock ScriptBlock %}

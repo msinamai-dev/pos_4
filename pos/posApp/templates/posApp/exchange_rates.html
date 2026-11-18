@@ -1,0 +1,305 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+<div class="mdc-card p-3">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+<h4 class="card-title mb-0">Exchange Rates</h4>
+<button class="btn btn-primary btn-sm" id="addRateBtn">
+Add Rate
+</button>
+</div>
+
+<!-- ================= FILTER ================= -->
+
+<form method="GET" class="mb-3">
+<div class="row">
+
+<div class="col-md-4">
+<input type="text"
+name="currency"
+class="form-control"
+placeholder="Search currency (e.g. USD)"
+value="{{ currency_filter }}">
+</div>
+
+<div class="col-md-2">
+<button class="btn btn-secondary">
+Filter
+</button>
+</div>
+
+</div>
+</form>
+
+<!-- ================= TABLE ================= -->
+
+<table class="table pos-table">
+<thead>
+<tr>
+<th>Currency</th>
+<th>Rate (vs USD)</th>
+<th>Source</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr class="table-light">
+<td><strong>USD</strong></td>
+<td><input type="text" class="form-control" value="1.00" disabled></td>
+<td>Base currency (always in the POS list and the default)</td>
+<td><span class="badge bg-success">Active</span></td>
+<td><span class="text-muted">Fixed</span></td>
+</tr>
+{% for rate in rates %}
+<tr data-id="{{ rate.id }}" {% if not rate.is_active %}class="table-secondary"{% endif %}>
+
+<td>{{ rate.currency }}</td>
+
+<td>
+<input type="number"
+step="0.000001"
+class="form-control rate-input"
+value="{{ rate.rate }}">
+</td>
+
+<td>
+<input type="text"
+class="form-control source-input"
+maxlength="100"
+placeholder="Source (optional)"
+value="{{ rate.source|default_if_none:'' }}">
+</td>
+
+<td>
+{% if rate.is_active %}
+<span class="badge bg-success">Active</span>
+{% else %}
+<span class="badge bg-secondary">Inactive</span>
+{% endif %}
+</td>
+
+<td>
+<button class="btn btn-success btn-sm updateRateBtn">
+Update
+</button>
+<button class="btn btn-warning btn-sm toggleRateBtn">
+{% if rate.is_active %}Deactivate{% else %}Activate{% endif %}
+</button>
+<button class="btn btn-danger btn-sm deleteRateBtn">
+Delete
+</button>
+</td>
+
+</tr>
+{% empty %}
+<tr>
+<td colspan="5" class="text-center">No exchange rates found</td>
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+<!-- ================= PAGINATION ================= -->
+
+{% if rates.paginator.num_pages > 1 %}
+<div class="mt-3 d-flex justify-content-center">
+
+<ul class="pagination">
+
+{% if rates.has_previous %}
+<li class="page-item">
+<a class="page-link"
+href="?page={{ rates.previous_page_number }}&currency={{ currency_filter }}">
+Previous
+</a>
+</li>
+{% endif %}
+
+<li class="page-item disabled">
+<span class="page-link">
+Page {{ rates.number }} of {{ rates.paginator.num_pages }}
+</span>
+</li>
+
+{% if rates.has_next %}
+<li class="page-item">
+<a class="page-link"
+href="?page={{ rates.next_page_number }}&currency={{ currency_filter }}">
+Next
+</a>
+</li>
+{% endif %}
+
+</ul>
+
+</div>
+{% endif %}
+
+</div>
+</div>
+
+<!-- ================= ADD RATE MODAL ================= -->
+
+<div class="modal fade" id="addRateModal">
+<div class="modal-dialog">
+<form id="addRateForm" class="modal-content">
+
+{% csrf_token %}
+
+<div class="modal-header">
+<h5 class="modal-title">Add Exchange Rate (Base USD)</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+
+<div class="mb-3">
+<label class="form-label">Currency Code</label>
+<input type="text"
+name="currency"
+class="form-control"
+maxlength="3"
+required
+placeholder="Example: ZWL">
+</div>
+
+<div class="mb-3">
+<label class="form-label">Rate vs USD</label>
+<input type="number"
+step="0.000001"
+name="rate"
+class="form-control"
+required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Source (optional)</label>
+<input type="text"
+name="source"
+class="form-control">
+</div>
+
+</div>
+
+<div class="modal-footer">
+<button type="submit" class="btn btn-primary">
+Save Rate
+</button>
+</div>
+
+</form>
+</div>
+</div>
+
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+
+$(function(){
+
+$.ajaxSetup({
+headers: { "X-CSRFToken": "{{ csrf_token }}" }
+});
+
+// ================= UPDATE RATE INLINE =================
+$('.updateRateBtn').click(function(){
+
+let tr = $(this).closest('tr');
+let id = tr.data('id');
+let rate = tr.find('.rate-input').val();
+let source = tr.find('.source-input').val();
+
+$.post("{% url 'update-exchange-rate' %}", {
+id:id,
+rate:rate,
+source:source
+}, function(resp){
+
+if(resp.status === 'success'){
+alert("Rate updated");
+}
+else{
+alert(resp.message || resp.msg);
+}
+
+});
+
+});
+
+// ================= ACTIVATE / DEACTIVATE =================
+$('.toggleRateBtn').click(function(){
+
+let id = $(this).closest('tr').data('id');
+
+$.post("{% url 'toggle-exchange-rate' %}", {id:id}, function(resp){
+
+if(resp.status === 'success'){
+location.reload();
+}
+else{
+alert(resp.msg || resp.message);
+}
+
+});
+
+});
+
+// ================= DELETE =================
+$('.deleteRateBtn').click(function(){
+
+let tr = $(this).closest('tr');
+let code = tr.find('td:first').text().trim();
+
+if(!confirm("Delete " + code + "? This cannot be undone.")) return;
+
+$.post("{% url 'delete-exchange-rate' %}", {id: tr.data('id')}, function(resp){
+
+if(resp.status === 'success'){
+location.reload();
+}
+else{
+alert(resp.msg || resp.message);
+}
+
+});
+
+});
+
+// ================= SHOW ADD MODAL =================
+$('#addRateBtn').click(function(){
+new bootstrap.Modal(
+document.getElementById('addRateModal')
+).show();
+});
+
+// ================= ADD RATE =================
+$('#addRateForm').submit(function(e){
+
+e.preventDefault();
+
+$.post("{% url 'add-exchange-rate' %}",
+$(this).serialize(),
+function(resp){
+
+if(resp.status === 'success'){
+alert("Exchange rate saved");
+location.reload();
+}
+else{
+alert(resp.message || resp.msg);
+}
+
+});
+
+});
+
+});
+
+</script>
+{% endblock ScriptBlock %}

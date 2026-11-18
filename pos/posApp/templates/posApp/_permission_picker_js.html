@@ -1,0 +1,47 @@
+
+<script>
+  (function () {
+    const rolePerms = JSON.parse(document.getElementById('role-perms').textContent);
+
+    function allBoxes() {
+      return $('.perm-group input[name="permissions"]');
+    }
+
+    // Tick + lock whatever the chosen role already gives; release boxes when the role changes
+    function applyRole() {
+      const granted = rolePerms[$('#id_role').val()] || [];
+      allBoxes().each(function () {
+        if ($(this).data('locked')) return;            // admin doesn't hold this permission
+        const fromRole = granted.includes(this.value);
+        if (fromRole) {
+          $(this).prop('checked', true).prop('disabled', true).attr('data-from-role', '1');
+        } else if ($(this).attr('data-from-role')) {
+          $(this).prop('checked', false).prop('disabled', false).removeAttr('data-from-role');
+        }
+      });
+    }
+
+    function usable(scope) {
+      return $(scope).find('input[name="permissions"]:not(:disabled)');
+    }
+
+    $('#id_role').on('change', applyRole);
+    applyRole();
+
+    // Mark / unmark every extra permission
+    $('#togglePermissionsBtn').on('click', function () {
+      const boxes = usable('.perm-group');
+      const allChecked = boxes.length === boxes.filter(':checked').length;
+      boxes.prop('checked', !allChecked);
+      $(this).text(allChecked ? 'Mark All' : 'Unmark All');
+    });
+
+    // Per-group select all
+    $('.group-toggle').on('click', function () {
+      const boxes = usable($(this).closest('.perm-group'));
+      const allChecked = boxes.length === boxes.filter(':checked').length;
+      boxes.prop('checked', !allChecked);
+      $(this).text(allChecked ? 'Select all' : 'Clear');
+    });
+  })();
+</script>

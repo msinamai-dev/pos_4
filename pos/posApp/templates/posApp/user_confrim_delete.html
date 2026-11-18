@@ -1,0 +1,16 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<h2 class="mdc-typography--headline5 mb-4">Confirm Delete</h2>
+
+<p>Are you sure you want to delete user <strong>{{ profile.user.username }}</strong>?</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="mdc-button mdc-button--raised" style="background-color: #e53935; color: #fff;">
+        Yes, Delete
+    </button>
+    <a href="{% url 'user-list' %}" class="mdc-button mdc-button--outlined">Cancel</a>
+</form>
+
+{% endblock pageContent %}

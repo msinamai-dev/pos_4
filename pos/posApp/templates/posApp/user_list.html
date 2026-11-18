@@ -1,0 +1,302 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+
+<!-- Header section -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">User Management</h4>
+      <div class="d-flex gap-2">
+        {% if request.user.is_superuser and all_branches %}
+        <form method="get" class="d-flex align-items-center mb-2">
+          <label for="branch_id" class="me-2">Select Branch:</label>
+          <select name="branch_id" id="branch_id" class="form-select me-3" onchange="this.form.submit()">
+            <option value="">All Branches</option>
+            {% for b in all_branches %}
+              <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<div id="alert-box"></div>
+
+<style>
+  .ul-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; }
+  .ul-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid #e5e7eb; border-left-width: 4px;
+             border-radius: 10px; background: #fff; text-decoration: none; color: #111827; transition: box-shadow .15s ease; }
+  .ul-card:hover { box-shadow: 0 2px 10px rgba(17, 24, 39, .08); color: #111827; }
+  .ul-card .ic { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex: none; }
+  .ul-card .lb { font-size: .8rem; color: #6b7280; }
+  .ul-card .nm { font-size: 1.6rem; font-weight: 600; line-height: 1.1; }
+  .ul-card.total { border-left-color: #1d5f8a; } .ul-card.total .ic { background: #e0eef6; color: #1d5f8a; }
+  .ul-card.act   { border-left-color: #15803d; } .ul-card.act   .ic { background: #dcfce7; color: #15803d; }
+  .ul-card.inact { border-left-color: #dc2626; } .ul-card.inact .ic { background: #fee2e2; color: #dc2626; }
+  .ul-card.on { box-shadow: 0 0 0 2px rgba(29, 95, 138, .25); }
+  .user-inactive { opacity: .6; }
+  .st-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 500; }
+  .st-badge.on { background: #dcfce7; color: #166534; }
+  .st-badge.off { background: #fee2e2; color: #991b1b; }
+  @media (max-width: 700px) { .ul-cards { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<!-- Cards: Total / Active / Deactivated (click one to filter the list) -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="ul-cards">
+    <a class="ul-card total {% if not status %}on{% endif %}" href="{% url 'user-list' %}{% if selected_branch_id %}?branch_id={{ selected_branch_id }}{% endif %}">
+      <span class="ic"><i class="bi bi-people"></i></span>
+      <span><div class="lb">Total users</div><div class="nm">{{ total_count }}</div></span>
+    </a>
+    <a class="ul-card act {% if status == 'active' %}on{% endif %}" href="?status=active{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}">
+      <span class="ic"><i class="bi bi-person-check"></i></span>
+      <span><div class="lb">Active</div><div class="nm">{{ active_count }}</div></span>
+    </a>
+    <a class="ul-card inact {% if status == 'inactive' %}on{% endif %}" href="?status=inactive{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}">
+      <span class="ic"><i class="bi bi-person-slash"></i></span>
+      <span><div class="lb">Deactivated</div><div class="nm">{{ inactive_count }}</div></span>
+    </a>
+  </div>
+</div>
+
+<!-- Table section -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Shop</th>
+            <th>Branch</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Extra permissions</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {# loop variable is `p` (a profile) so it no longer hides the logged-in `user` #}
+          {% for p in users %}
+          <tr id="user-row-{{ p.user.id }}" class="{% if not p.user.is_active %}user-inactive{% endif %}">
+            <td class="text-center">{{ p.user.username }}</td>
+            <td class="text-center">{{ p.user.email }}</td>
+            <td class="text-center">{% if p.shop %}{{ p.shop.name }}{% else %}-{% endif %}</td>
+            <td class="text-center">{% if p.branch %}{{ p.branch.name }}{% else %}-{% endif %}</td>
+            <td class="text-center">{% if p.role %}{{ p.role.name }}{% else %}-{% endif %}</td>
+            <td class="text-center">
+              {% if p.user.is_active %}<span class="st-badge on">Active</span>{% else %}<span class="st-badge off">Deactivated</span>{% endif %}
+            </td>
+            <td class="text-center">
+              <div style="max-width:260px; max-height:90px; overflow:auto; font-size:.8rem;">
+                {% for perm in p.permissions %}
+                  {{ perm }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                  None
+                {% endfor %}
+              </div>
+            </td>
+            <td class="text-center">
+              <!-- Edit button opens the modal -->
+              <button type="button" class="mdc-button mdc-button--outlined mdc-button--dense"
+                      data-bs-toggle="modal"
+                      data-bs-target="#editUserModal"
+                      data-user-id="{{ p.user.id }}">
+                Edit
+              </button>
+
+              <!-- Reset password (sets it to 1234 and forces a change at next login) -->
+              {% if p.user.id != request.user.id %}
+              <button type="button" class="mdc-button mdc-button--outlined mdc-button--dense reset-pw-btn"
+                      data-url="{% url 'reset-user-password' p.user.id %}"
+                      data-username="{{ p.user.username }}">
+                Reset password
+              </button>
+              {% endif %}
+
+              <!-- Activate / Deactivate (not for your own row) -->
+              {% if p.user.id != request.user.id %}
+              <button type="button"
+                      class="mdc-button mdc-button--outlined mdc-button--dense set-active-btn"
+                      style="{% if p.user.is_active %}color:#dc2626; border-color:#dc2626;{% else %}color:#15803d; border-color:#15803d;{% endif %}"
+                      data-url="{% url 'set-user-active' p.user.id %}"
+                      data-username="{{ p.user.username }}"
+                      data-make-active="{% if p.user.is_active %}0{% else %}1{% endif %}">
+                {% if p.user.is_active %}Deactivate{% else %}Activate{% endif %}
+              </button>
+              {% endif %}
+
+              <!-- Delete button -->
+              <a href="{% url 'user-delete' p.user.id %}" class="mdc-button mdc-button--raised mdc-button--dense"
+                 style="background-color: #e53935; color: #fff;"
+                 onclick="return confirm('Are you sure you want to delete this user?');">
+                Delete
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>   <!-- /mdc-card  (these two closers were missing before) -->
+</div>     <!-- /grid cell -->
+
+<!-- Edit User Modal: outside the card so nothing clips it or stacks over it -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      {# ONE form lives here. It is a flex column with a max height so the body scrolls and the footer stays visible. #}
+      <form id="editUserForm" method="POST"
+            style="display:flex; flex-direction:column; max-height:calc(100vh - 3.5rem); min-height:0;">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto; min-height:0;">
+          <div id="editUserFormContent" class="p-2">
+            <div class="text-center text-muted">Loading...</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success" id="editUserSave">Save Changes</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+{% comment %} jQuery and Bootstrap come from base.html. Loading them a second time here doubled the modal handlers, so the two script tags were removed. {% endcomment %}
+<script>
+$(function () {
+    var $content = $('#editUserFormContent');
+    var $save    = $('#editUserSave');
+
+    // load the form when the modal opens
+    $('#editUserModal').on('show.bs.modal', function (event) {
+        var userId = $(event.relatedTarget).data('user-id');
+        var url = '/api/users/' + userId + '/edit/';       // your edit view URL
+
+        $content.html('<div class="text-center text-muted">Loading...</div>');
+        $('#editUserForm').attr('action', url);
+
+        // jQuery sends X-Requested-With, so the view returns just the form, not the page
+        $.get(url)
+            .done(function (html) { $content.html(html); })
+            .fail(function () { $content.html('<div class="text-danger">Failed to load form.</div>'); });
+    });
+
+    // "Select all" / "Clear" per permission group
+    $(document).on('click', '.perm-select-all', function (e) {
+        e.preventDefault();
+        var $boxes = $(this).closest('.perm-group').find('input[name="permissions"]:not(:disabled)');
+        var allOn  = $boxes.length === $boxes.filter(':checked').length;
+        $boxes.prop('checked', !allOn);
+        $(this).text(allOn ? 'Select all' : 'Clear');
+    });
+
+    function showErrors(message) {
+        var $box = $('#editUserErrors').empty();
+        var lines = (typeof message === 'string') ? [message]
+            : $.map(message || {}, function (list, field) {
+                return $.map(list, function (t) { return field + ': ' + t; });
+            });
+        lines.forEach(function (t) { $('<div>').text(t).appendTo($box); });
+    }
+
+    // reset password to 1234
+    function showPwAlert(kind, text) {
+        // alert-warning on purpose: base.html fades success/info alerts after 4 seconds
+        var $a = $('<div class="alert alert-' + kind + ' alert-dismissible fade show mt-2" role="alert">')
+            .append($('<strong>').text(text))
+            .append('<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>');
+        $('#alert-box').empty().append($a);
+        $('html, body').animate({ scrollTop: 0 }, 200);
+    }
+
+    $(document).on('click', '.reset-pw-btn', function () {
+        var $b = $(this);
+        var name = $b.data('username');
+        if (!confirm('Reset the password for ' + name + ' to 1234?\nThey will have to change it the next time they sign in.')) return;
+
+        var csrf = $('#editUserForm [name=csrfmiddlewaretoken]').val();
+        $b.prop('disabled', true);
+        $.ajax({
+            url: $b.data('url'),
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf },
+            dataType: 'json'
+        }).done(function (r) {
+            showPwAlert(r.status === 'success' ? 'warning' : 'danger', r.message || r.msg || 'Done.');
+        }).fail(function (xhr) {
+            var r = xhr.responseJSON || {};
+            showPwAlert('danger', r.message || r.msg || 'Could not reset the password.');
+        }).always(function () {
+            $b.prop('disabled', false);
+        });
+    });
+
+    // activate / deactivate
+    $(document).on('click', '.set-active-btn', function () {
+        var $b = $(this);
+        var name = $b.data('username');
+        var makeActive = String($b.data('make-active')) === '1';
+        var question = makeActive
+            ? 'Activate ' + name + '? They will be able to sign in again.'
+            : 'Deactivate ' + name + '?\nThey will be signed out and cannot sign in until you activate them again.';
+        if (!confirm(question)) return;
+
+        var csrf = $('#editUserForm [name=csrfmiddlewaretoken]').val();
+        $b.prop('disabled', true);
+        $.ajax({
+            url: $b.data('url'),
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf },
+            data: { active: makeActive ? 1 : 0 },
+            dataType: 'json'
+        }).done(function () {
+            location.reload();        // the page shows the confirmation message and new numbers
+        }).fail(function (xhr) {
+            var r = xhr.responseJSON || {};
+            showPwAlert('danger', r.message || r.msg || 'Could not change the account.');
+            $b.prop('disabled', false);
+        });
+    });
+
+    // save with AJAX
+    $('#editUserForm').on('submit', function (e) {
+        e.preventDefault();
+        var form = $(this);
+        showErrors('');
+        $save.prop('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            dataType: 'json'
+        }).done(function (resp) {
+            if (resp.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+                location.reload();                         // refresh the table
+            } else {
+                showErrors(resp.message || resp.msg || 'Could not save.');
+            }
+        }).fail(function (xhr) {
+            var r = xhr.responseJSON || {};
+            showErrors(r.message || r.msg || 'Failed to save changes.');
+        }).always(function () {
+            $save.prop('disabled', false);
+        });
+    });
+});
+</script>
+{% endblock ScriptBlock %}

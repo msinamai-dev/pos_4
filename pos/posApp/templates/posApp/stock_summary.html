@@ -1,0 +1,126 @@
+{% extends "posApp/base.html" %}
+{% load custom_filters %}
+
+{% block pageContent %}
+<div class="mdc-layout-grid" style="width:100vw; margin:0; padding:0;">
+    <div class="mdc-layout-grid__inner">
+
+        <!-- Top Cards Row -->
+        <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+            <div class="mdc-layout-grid__inner mb-4">
+                <!-- Total Shortage Card -->
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div class="mdc-card mdc-elevation--z4 bg-danger text-white">
+                        <div class="mdc-card__primary-action p-3">
+                            <h5 class="mdc-typography--subtitle1">💸 Total Shortage</h5>
+                            <p class="mdc-typography--headline6">${{ total_shortage|floatformat:2 }}</p>
+                            <p class="mdc-typography--body2">Qty: {{ total_shortage_qty }}</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Overstock Card -->
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div class="mdc-card mdc-elevation--z4 bg-success text-white">
+                        <div class="mdc-card__primary-action p-3">
+                            <h5 class="mdc-typography--subtitle1">📈 Total Overstock</h5>
+                            <p class="mdc-typography--headline6">${{ total_overstock|floatformat:2 }}</p>
+                            <p class="mdc-typography--body2">Qty: {{ total_overstock_qty }}</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Net Discrepancy Card -->
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div class="mdc-card mdc-elevation--z4 bg-secondary text-white">
+                        <div class="mdc-card__primary-action p-3">
+                            <h5 class="mdc-typography--subtitle1">⚖️ Net Discrepancy</h5>
+                            <p class="mdc-typography--headline6">{{ net_discrepancy_qty }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Filter -->
+        {% if branches %}
+        <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12 mb-3">
+            <label for="branch-select" class="mdc-typography--subtitle1"><strong>Filter by Branch:</strong></label>
+            <div class="mdc-select mdc-select--outlined w-25">
+                <select id="branch-select" class="mdc-select__native-control">
+                    <option value="">All Branches</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if branch == selected_branch %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+                <label class="mdc-floating-label">Branch</label>
+                <div class="mdc-line-ripple"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Stock Summary Table -->
+        <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+            <div class="mdc-card mdc-elevation--z4">
+                <div class="mdc-card__primary-action p-3"  style="min-width:700px; width: 100%;">
+                    <h5 class="mdc-typography--subtitle1 mb-3">Stock Details</h5>
+                    <div class="mdc-data-table mdc-data-table--with-scroll">
+                        <table class="table pos-table">
+                            <thead>
+                                <tr class="mdc-data-table__header-row">
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Product</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Stock Ordered</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Total Sold</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Stock Adjusted</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Available Stock</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Physical Count</th>
+                                    <th class="mdc-data-table__header-cell" style="width: 10%;">Discrepancy</th>
+                                </tr>
+                            </thead>
+                            <tbody class="mdc-data-table__content">
+                                {% for summary in stock_summaries %}
+                                <tr class="mdc-data-table__row">
+                                    <td class="mdc-data-table__cell">{{ summary.product.name }}</td>
+                                    <td class="mdc-data-table__cell">{{ summary.stock_ordered }}</td>
+                                    <td class="mdc-data-table__cell">{{ summary.total_sold }}</td>
+                                    <td class="mdc-data-table__cell">{{ summary.stock_removed }}</td>
+                                    <td class="mdc-data-table__cell">{{ summary.available_stock }}</td>
+                                    <td class="mdc-data-table__cell">{{ summary.physical_count }}</td>
+                                    <td class="mdc-data-table__cell">
+                                        {% if summary.discrepancy < 0 %}
+                                        <span class="mdc-chip mdc-chip--outlined mdc-chip--error">
+                                            <span class="mdc-chip__text">Shortage: {{ summary.discrepancy|abs }}</span>
+                                        </span>
+                                        {% elif summary.discrepancy > 0 %}
+                                        <span class="mdc-chip mdc-chip--outlined mdc-chip--success">
+                                            <span class="mdc-chip__text">Overstock: {{ summary.discrepancy }}</span>
+                                        </span>
+                                        {% else %}
+                                        <span class="mdc-chip mdc-chip--outlined mdc-chip--secondary">OK</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr class="mdc-data-table__row">
+                                    <td class="mdc-data-table__cell text-center" colspan="7">No stock summary available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block ScriptBlock %}
+<script>
+$('#branch-select').on('change', function(){
+    const branchId = $(this).val();
+    let url = "{% url 'stock-summary' %}";
+    if(branchId) url += `?branch=${branchId}`;
+    window.location.href = url;
+});
+</script>
+{% endblock %}

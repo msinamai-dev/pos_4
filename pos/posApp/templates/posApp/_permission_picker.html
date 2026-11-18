@@ -1,0 +1,40 @@
+<!-- templates/posApp/_permission_picker.html
+     Needs in context: permission_groups, role_permissions, selected_permissions, profile_form -->
+<section class="pos-form-section">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <h5 class="pos-form-section-title">
+        <span class="pos-ico"><i class="bi bi-shield-check"></i></span> Extra permissions
+      </h5>
+      <p class="pos-form-section-sub">
+        Permissions from the selected role are ticked and locked. Tick anything extra this user needs.
+      </p>
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="togglePermissionsBtn">Mark All</button>
+  </div>
+
+  {% for group, items in permission_groups %}
+  <div class="mb-3 perm-group">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <h6 class="mb-0">{{ group }}</h6>
+      <button type="button" class="btn btn-link btn-sm p-0 group-toggle">Select all</button>
+    </div>
+    <div class="pos-chip-group permissions-container">
+      {% for code, label, allowed in items %}
+      <label {% if not allowed %}class="opacity-50" title="You don't have this permission yourself"{% endif %}>
+        <input type="checkbox" name="permissions" value="{{ code }}"
+               {% if not allowed %}disabled data-locked="1"{% endif %}
+               {% if code in selected_permissions %}checked{% endif %}>
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if profile_form.permissions.errors %}
+    <div class="text-danger small mt-2">{{ profile_form.permissions.errors|join:", " }}</div>
+  {% endif %}
+</section>
+
+{{ role_permissions|json_script:"role-perms" }}

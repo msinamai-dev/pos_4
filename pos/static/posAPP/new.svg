@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   sodipodi:docname="new.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.76167929"
+     inkscape:cx="396.49233"
+     inkscape:cy="561.25984"
+     inkscape:window-width="1920"
+     inkscape:window-height="1057"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1">
+    <linearGradient
+       id="linearGradient15"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#f2f2f2;stop-opacity:1;"
+         offset="0"
+         id="stop15" />
+      <stop
+         style="stop-color:#f2f2f2;stop-opacity:0;"
+         offset="1"
+         id="stop16" />
+    </linearGradient>
+    <rect
+       x="82.711977"
+       y="350.54123"
+       width="15.754662"
+       height="106.34397"
+       id="rect15" />
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="-22.926315 : 49.499997 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="187.07368 : 49.499997 : 1"
+       inkscape:persp3d-origin="82.073685 : -2.7974447e-06 : 1"
+       id="perspective2" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient15"
+       id="linearGradient16"
+       x1="42.378948"
+       y1="81.631577"
+       x2="39.947369"
+       y2="67.389473"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50.8px;font-family:'Copperplate Gothic Bold';-inkscape-font-specification:'Copperplate Gothic Bold, ';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;white-space:pre;inline-size:64.8938;opacity:0.976923;fill:#ffff00;fill-opacity:1;stroke:#b9b9b9;stroke-width:0.499999"
+       x="26.4"
+       y="93.442108"
+       id="text14"
+       transform="translate(38.557895,86.842105)"><tspan
+         x="26.4"
+         y="93.442108"
+         id="tspan2"><tspan
+           style="stroke-width:0.5"
+           id="tspan1">m
+</tspan></tspan><tspan
+         x="26.4"
+         y="156.9421"
+         id="tspan4"><tspan
+           style="stroke-width:0.5"
+           id="tspan3">  
+</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text15"
+       style="fill:#f2f2f2;text-orientation:auto;font-size:64px;stroke:#b9b9b9;stroke-width:1.88976378;-inkscape-font-specification:'Britannic Bold, ';font-family:'Britannic Bold';opacity:0.97692308;text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect15)" />
+    <path
+       style="opacity:0.976923;fill:#f2f2f2;stroke:#b9b9b9;stroke-width:2.48105"
+       d=""
+       id="path16"
+       transform="scale(0.26458333)" />
+    <path
+       style="opacity:0.976923;fill:#f2f2f2;stroke:#b9b9b9;stroke-width:2.48105"
+       d=""
+       id="path17"
+       transform="scale(0.26458333)" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50.8px;font-family:'Copperplate Gothic Bold';-inkscape-font-specification:'Copperplate Gothic Bold, ';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;opacity:0.976923;fill:#ffff00;stroke:#b9b9b9;stroke-width:0.499999"
+       x="102.12631"
+       y="145.2"
+       id="text34"><tspan
+         sodipodi:role="line"
+         id="tspan34"
+         style="stroke-width:0.5;font-size:50.8px;fill:#ffff00"
+         x="102.12631"
+         y="145.2"></tspan><tspan
+         sodipodi:role="line"
+         style="stroke-width:0.5;font-size:50.8px;fill:#ffff00"
+         id="tspan35"
+         x="102.12631"
+         y="176.95">s</tspan></text>
+  </g>
+</svg>

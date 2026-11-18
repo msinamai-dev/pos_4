@@ -1,0 +1,93 @@
+{% load widget_tweaks %}
+{# Partial for the Edit User modal. No base.html, no <form>, no buttons: user_list.html's modal owns the form and Save / Cancel. #}
+<style>
+  .perm-group { margin-bottom: 1rem; }
+  .perm-group-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem; }
+  .perm-grid { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .perm-pill { display:inline-flex; min-height:38px; align-items:center; gap:.4rem; padding:.3rem .7rem;
+               border:1px solid #dee2e6; border-radius:999px; font-size:.85rem; cursor:pointer; background:#fff; }
+  .perm-pill input { margin:0; }
+  .perm-pill.locked { opacity:.55; cursor:not-allowed; }
+</style>
+
+<div id="editUserFields">
+
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <label for="id_username" class="form-label">Username</label>
+      <input type="text" name="username" id="id_username" class="form-control"
+             value="{{ user_obj.username }}" required>
+    </div>
+    <div class="col-12 col-md-6">
+      <label for="id_email" class="form-label">Email</label>
+      <input type="email" name="email" id="id_email" class="form-control" value="{{ user_obj.email }}">
+    </div>
+
+    <div class="col-12 col-md-6">
+      <label for="{{ profile_form.phone_number.id_for_label }}" class="form-label">Phone number</label>
+      {% render_field profile_form.phone_number class="form-control" %}
+    </div>
+    <div class="col-12 col-md-6">
+      <label for="{{ profile_form.country.id_for_label }}" class="form-label">Country</label>
+      {% render_field profile_form.country class="form-control" %}
+    </div>
+
+    <div class="col-12 col-md-6">
+      <label for="{{ profile_form.branch.id_for_label }}" class="form-label">Branch</label>
+      {% render_field profile_form.branch class="form-select" %}
+    </div>
+    <div class="col-12 col-md-6">
+      <label for="{{ profile_form.role.id_for_label }}" class="form-label">Role</label>
+      {% render_field profile_form.role class="form-select" %}
+    </div>
+
+    <div class="col-12">
+      {% if request.user.is_superuser and user_obj.pk != request.user.pk %}
+      <div class="form-check form-check-inline">
+        <input type="checkbox" name="is_superuser" id="id_is_superuser" class="form-check-input"
+               {% if user_obj.is_superuser %}checked{% endif %}>
+        <label class="form-check-label" for="id_is_superuser">Superuser</label>
+      </div>
+      {% endif %}
+      <div class="form-check form-check-inline">
+        <input type="checkbox" name="is_staff" id="id_is_staff" class="form-check-input"
+               {% if user_obj.is_staff %}checked{% endif %}>
+        <label class="form-check-label" for="id_is_staff">Staff</label>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+  <h6 class="mb-1">Extra permissions</h6>
+  <p class="text-muted small">
+    The role's permissions apply automatically. Tick only what this person needs
+    <strong>on top of</strong> their role.
+  </p>
+
+  {% for group, items in permission_groups %}
+  <div class="perm-group">
+    <div class="perm-group-head">
+      <span class="fw-semibold">{{ group }}</span>
+      <a href="#" class="small perm-select-all">Select all</a>
+    </div>
+    <div class="perm-grid">
+      {% for code, label in items %}
+        {% if code in grantable %}
+        <label class="perm-pill">
+          <input type="checkbox" name="permissions" value="{{ code }}"
+                 {% if code in selected %}checked{% endif %}> {{ label }}
+        </label>
+        {% else %}
+        {# the admin doesn't hold this permission: show it locked, keep it if the user already has it #}
+        <label class="perm-pill locked" title="You can't grant a permission you don't have">
+          <input type="checkbox" disabled {% if code in selected %}checked{% endif %}> {{ label }}
+        </label>
+        {% if code in selected %}<input type="hidden" name="permissions" value="{{ code }}">{% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="text-danger small" id="editUserErrors"></div>
+</div>

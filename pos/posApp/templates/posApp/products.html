@@ -1,0 +1,196 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<!-- Header -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Product List</h4>
+      <div class="d-flex gap-2">
+        <!-- ✅ Branch switcher (superusers only) -->
+        {% if request.user.is_superuser and branches %}
+          <form method="get" class="me-2">
+            <select name="branch" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">-- All Branches --</option>
+              {% for br in branches %}
+                <option value="{{ br.id }}" {% if selected_branch and selected_branch.id == br.id %}selected{% endif %}>
+                  {{ br.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </form>
+        {% endif %}
+
+        <button class="btn btn-primary bg-gradient btn-sm rounded-0" id="create_new">
+          <i class="mdi mdi-plus"></i><span> Add New</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="mb-3 text-mid">
+      <a href="{% url 'export_excel' page='products' %}" class="btn btn-outline-success btn-sm me-2">
+        📥 Export to Excel
+      </a>
+      <a href="{% url 'export_pdf' page='products' %}" class="btn btn-outline-danger btn-sm">
+        📄 Export to PDF
+      </a>
+    </div>
+    <form id="importForm" action="{% url 'import-products' %}" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="input-group">
+        <input type="file" name="file" accept=".xlsx, .xls" class="form-control" required>
+        <button class="btn btn-primary" type="submit">Import Excel</button>
+      </div>
+    </form>
+  </div>
+
+  {% if messages %}
+  <div>
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  </div>
+</div>
+
+<!-- Product Table -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Category</th>
+            <th>Product</th>
+            <th class="text-center py 1">Qty</th>
+            
+            <th>Description</th>
+            <th>Shop</th>
+            <th>Branch</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+          <tr>
+            <td class="text-center">{{ product.id }}</td>
+
+
+            <td >{{ product.category|default:"Not Set" }}</td>
+
+            <td>{{ product.name }}</td>
+            <td>{{product.stock}}</td>
+            
+            <td>{{ product.description }}</td>
+            <td class="text-center">{{ product.shop.name }}</td>
+            <td class="text-center">{{ product.branch.name|default:"-" }}</td>
+            <td class="text-center">
+              <span class="badge {{ product.status|yesno:'bg-primary,bg-secondary' }} rounded-pill px-3">
+                {{ product.status|yesno:'Active,Inactive' }}
+              </span>
+            </td>
+            <td class="text-center">
+              <button class="mdc-button mdc-button--raised p-1 icon-button edit-data" 
+                      data-id="{{ product.pk }}" title="Edit">
+                <i class="material-icons mdc-button__icon">edit</i>
+              </button>
+              <button class="mdc-button mdc-button--raised p-1 icon-button delete-data"
+                      data-id="{{ product.pk }}" data-name="{{ product.name }}" title="Delete"
+                      style="background-color:#dc3545;">
+                <i class="material-icons mdc-button__icon">delete</i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center">No products found for this branch.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="uni_modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+  function uni_modal(title, url) {
+    start_loader();
+    $.ajax({
+      url: url,
+      success: function(resp) {
+        $('#uni_modal .modal-title').text(title);
+        $('#uni_modal .modal-body').html(resp);
+        $('#uni_modal').modal('show');
+        end_loader();
+      },
+      error: function(err) {
+        console.error(err);
+        alert("An error occurred while loading form.");
+        end_loader();
+      }
+    });
+  }
+
+  $(function() {
+    // Add new product
+    $('#create_new').click(() => {
+      uni_modal("Add New Product", "{% url 'manage_products-page' %}");
+    });
+
+    // Edit product
+    $('.edit-data').click(function() {
+      const id = $(this).data('id');
+      uni_modal("Edit Product", "{% url 'manage_products-page' %}?id=" + id);
+    });
+
+    // Delete product
+    var deleteUrlTemplate = "{% url 'delete-product' 0 %}";
+    $('.delete-data').click(function() {
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      if (!confirm('Delete product "' + name + '"? This cannot be undone.')) return;
+
+      start_loader();
+      $.ajax({
+        url: deleteUrlTemplate.replace(/0\/delete\/$/, id + '/delete/'),
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        dataType: 'json',
+        success: function(resp) {
+          end_loader();
+          if (resp.status === 'success') {
+            location.reload();
+          } else {
+            alert(resp.msg || 'Could not delete the product.');
+          }
+        },
+        error: function(err) {
+          console.error(err);
+          end_loader();
+          alert('An error occurred while deleting the product.');
+        }
+      });
+    });
+  });
+</script>
+{% endblock ScriptBlock %}

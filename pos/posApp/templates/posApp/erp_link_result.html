@@ -1,0 +1,11 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <section class="erp-link-panel erp-link-result w-100">
+    <div class="erp-link-icon"><i class="bi {% if success %}bi-check-circle{% else %}bi-shield-exclamation{% endif %}"></i></div>
+    <h1>{{ page_title|default:"Shop connection" }}</h1>
+    <p class="erp-link-lead">{{ message }}</p>
+    <a class="btn btn-primary" href="{% url 'home-page' %}">Return to POS</a>
+  </section>
+</div>
+{% endblock %}

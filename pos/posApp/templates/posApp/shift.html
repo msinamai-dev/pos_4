@@ -1,0 +1,122 @@
+<!-- 3. Replace your Shift Toggle + modal + script block in pos.html with this.
+     Needs from pos(): currencies, shift_open, shift_currencies.
+     Needs a {% url 'close-shift' %} route (rename to match your urls.py). -->
+
+<!-- Shift Toggle -->
+<div class="form-check form-switch mb-4">
+  <input class="form-check-input" type="checkbox" id="shiftToggle" {% if shift_open %}checked{% endif %}>
+  <label class="form-check-label" for="shiftToggle" id="shiftToggleLabel">
+    {% if shift_open %}Shift open (switch off to close){% else %}Start shift{% endif %}
+  </label>
+</div>
+{% csrf_token %}
+
+<!-- Open Shift Modal -->
+<div class="modal fade" id="openShiftModal" tabindex="-1" aria-labelledby="openShiftLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="openShiftForm" class="modal-content" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="openShiftLabel">Open shift</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Enter the cash in the drawer for each currency. Use 0 if there is none.</p>
+        {% for cur in currencies %}
+        <div class="mb-3">
+          <label class="form-label" for="open_{{ cur }}">{{ cur }} in drawer</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control open-amount"
+                 id="open_{{ cur }}" data-currency="{{ cur }}" placeholder="0.00" required>
+        </div>
+        {% endfor %}
+        <div class="text-danger small" id="openShiftError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Open shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Close Shift Modal -->
+<div class="modal fade" id="closeShiftModal" tabindex="-1" aria-labelledby="closeShiftLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="closeShiftForm" class="modal-content" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="closeShiftLabel">Close shift</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Count the cash in the drawer and enter it for each currency. Use 0 if there is none.</p>
+        {% for cur in shift_currencies %}
+        <div class="mb-3">
+          <label class="form-label" for="close_{{ cur }}">{{ cur }} counted</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control close-amount"
+                 id="close_{{ cur }}" data-currency="{{ cur }}" placeholder="0.00" required>
+        </div>
+        {% empty %}
+        <p class="text-muted">No currencies were recorded when this shift opened.</p>
+        {% endfor %}
+        <div class="text-danger small" id="closeShiftError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-danger">Close shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const toggle = document.getElementById('shiftToggle');
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const openModalEl = document.getElementById('openShiftModal');
+    const closeModalEl = document.getElementById('closeShiftModal');
+    const openModal = new bootstrap.Modal(openModalEl);
+    const closeModal = new bootstrap.Modal(closeModalEl);
+    let submitted = false;
+
+    toggle.addEventListener('change', function () {
+      submitted = false;
+      (this.checked ? openModal : closeModal).show();
+    });
+
+    // Cancelling a popup puts the switch back to the real shift state.
+    openModalEl.addEventListener('hidden.bs.modal', () => { if (!submitted) toggle.checked = false; });
+    closeModalEl.addEventListener('hidden.bs.modal', () => { if (!submitted) toggle.checked = true; });
+
+    function collect(selector) {
+      const amounts = {};
+      document.querySelectorAll(selector).forEach(i => { amounts[i.dataset.currency] = i.value; });
+      return amounts;
+    }
+
+    function post(url, amounts, errorEl, onDone) {
+      errorEl.textContent = '';
+      fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amounts })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success') { submitted = true; onDone(data); }
+          else { errorEl.textContent = data.message; }
+        })
+        .catch(() => { errorEl.textContent = 'Network error. Try again.'; });
+    }
+
+    document.getElementById('openShiftForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      post("{% url 'open-shift' %}", collect('.open-amount'),
+           document.getElementById('openShiftError'),
+           () => location.reload());   
+    });
+
+    document.getElementById('closeShiftForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      post("{% url 'close-shift' %}", collect('.close-amount'),
+           document.getElementById('closeShiftError'),
+           () => location.reload());
+    });
+  })();
+</script>

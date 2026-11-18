@@ -1,0 +1,250 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2 px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Branches for {{ shop.name }}</h4>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBranchModal">Add Branch</button>
+    </div>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div id="alert-box" class="w-100"></div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="branchTable">
+          {% for branch in branches %}
+          <tr data-id="{{ branch.id }}">
+            <td class="text-center">{{ branch.name }}</td>
+            <td class="text-center">{{ branch.location }}</td>
+            <td class="text-center">{{ branch.is_active|yesno:"Active,Inactive" }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline-primary edit-branch" data-id="{{ branch.id }}">Edit</button>
+              <button type="button" class="btn btn-sm btn-outline-danger delete-branch" data-id="{{ branch.id }}" data-name="{{ branch.name }}">Delete</button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr id="noBranchRow"><td colspan="4" class="text-center text-muted">No branches yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="addBranchModal" tabindex="-1" aria-labelledby="addBranchModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="branchForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="addBranchModalLabel">Add New Branch</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="form-error"></div>
+          {% for field in branch_form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <div class="text-danger small">{{ field.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="saveBranchBtn">Save Branch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Branch Modal (fields are filled with the branch's current values when it opens) -->
+<div class="modal fade" id="editBranchModal" tabindex="-1" aria-labelledby="editBranchModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editBranchForm">
+        {% csrf_token %}
+        <input type="hidden" id="edit_branch_id" name="branch_id">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editBranchModalLabel">Edit Branch</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="edit-form-error"></div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_name">Name</label>
+            <input type="text" class="form-control" id="edit_name" name="name" maxlength="100" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_location">Location</label>
+            <input type="text" class="form-control" id="edit_location" name="location" maxlength="255">
+          </div>
+          <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" id="edit_is_active" name="is_active">
+            <label class="form-check-label" for="edit_is_active">Active</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="updateBranchBtn">Update Branch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+  function showAlert(type, text) {
+    var $box = $('#alert-box');
+    $box.html('<div class="alert alert-' + type + '"></div>');
+    $box.find('.alert').text(text);
+    // success/info alerts are auto-removed by base.html after 4 seconds
+  }
+
+  // closeModalSafely() lives in base.html: closes the modal and clears any stuck backdrop
+  function closeBranchModal() {
+    closeModalSafely('addBranchModal');
+  }
+
+  // show the success message that was saved just before the reload
+  (function () {
+    var flash = sessionStorage.getItem('branchFlash');
+    if (flash) {
+      sessionStorage.removeItem('branchFlash');
+      showAlert('success', flash);
+    }
+  })();
+
+  $('#branchForm').on('submit', function (e) {
+    e.preventDefault();
+    var $form = $(this);
+    var $btn = $('#saveBranchBtn');
+    $('#form-error').empty();
+    $btn.prop('disabled', true).text('Saving...');
+
+    $.ajax({
+      url: "{% url 'create-branch-modal' %}",
+      method: "POST",
+      data: $form.serialize(),
+      success: function (resp) {
+        if (resp.status === 'success') {
+          $form[0].reset();
+          sessionStorage.setItem('branchFlash', resp.message || 'Branch saved successfully.');
+          closeBranchModal();
+          // reload so the table (with its search, filters and paging) shows the new branch
+          setTimeout(function () { location.reload(); }, 500);
+        } else {
+          // keep the modal open so the user can fix the problem
+          $('#form-error').html('<div class="alert alert-danger"></div>')
+                          .find('.alert').text(resp.message || 'Could not save the branch.');
+          $btn.prop('disabled', false).text('Save Branch');
+        }
+      },
+      error: function (xhr) {
+        console.error(xhr.status, xhr.responseText);
+        $('#form-error').html('<div class="alert alert-danger">An error occurred. Check the console.</div>');
+        $btn.prop('disabled', false).text('Save Branch');
+      }
+    });
+  });
+
+  // ===================== EDIT BRANCH =====================
+  var editUrlTemplate   = "{% url 'edit-branch' 0 %}";
+  var deleteUrlTemplate = "{% url 'delete-branch' 0 %}";
+  function branchUrl(tpl, id) { return tpl.replace(/0\/(edit|delete)\/$/, id + '/$1/'); }
+  var csrfToken = "{{ csrf_token }}";
+
+  // open the edit modal with the branch's current values
+  $(document).on('click', '.edit-branch', function () {
+    var id = $(this).data('id');
+    $('#edit-form-error').empty();
+    $.get(branchUrl(editUrlTemplate, id), function (resp) {
+      if (resp.status !== 'success') {
+        showAlert('danger', resp.message || 'Could not load the branch.');
+        return;
+      }
+      $('#edit_branch_id').val(resp.branch.id);
+      $('#edit_name').val(resp.branch.name);
+      $('#edit_location').val(resp.branch.location);
+      $('#edit_is_active').prop('checked', resp.branch.is_active);
+      new bootstrap.Modal(document.getElementById('editBranchModal')).show();
+    }).fail(function () {
+      showAlert('danger', 'Could not load the branch.');
+    });
+  });
+
+  $('#editBranchForm').on('submit', function (e) {
+    e.preventDefault();
+    var id = $('#edit_branch_id').val();
+    var $btn = $('#updateBranchBtn');
+    $('#edit-form-error').empty();
+    $btn.prop('disabled', true).text('Saving...');
+
+    $.ajax({
+      url: branchUrl(editUrlTemplate, id),
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      data: $(this).serialize(),
+      success: function (resp) {
+        if (resp.status === 'success') {
+          sessionStorage.setItem('branchFlash', resp.message || 'Branch updated successfully.');
+          closeModalSafely('editBranchModal');
+          setTimeout(function () { location.reload(); }, 500);
+        } else {
+          $('#edit-form-error').html('<div class="alert alert-danger"></div>')
+                               .find('.alert').text(resp.message || 'Could not update the branch.');
+          $btn.prop('disabled', false).text('Update Branch');
+        }
+      },
+      error: function () {
+        $('#edit-form-error').html('<div class="alert alert-danger">An error occurred.</div>');
+        $btn.prop('disabled', false).text('Update Branch');
+      }
+    });
+  });
+
+  // ===================== DELETE BRANCH =====================
+  $(document).on('click', '.delete-branch', function () {
+    var id = $(this).data('id');
+    var name = $(this).data('name');
+    if (!confirm('Delete branch "' + name + '"? This cannot be undone.')) return;
+
+    $.ajax({
+      url: branchUrl(deleteUrlTemplate, id),
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      success: function (resp) {
+        if (resp.status === 'success') {
+          sessionStorage.setItem('branchFlash', resp.message || 'Branch deleted.');
+          location.reload();
+        } else {
+          showAlert('danger', resp.message || 'Could not delete the branch.');
+          window.scrollTo(0, 0);
+        }
+      },
+      error: function () {
+        showAlert('danger', 'An error occurred while deleting the branch.');
+      }
+    });
+  });
+</script>
+{% endblock ScriptBlock %}

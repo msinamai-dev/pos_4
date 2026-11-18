@@ -1,0 +1,26 @@
+{% extends "posApp/base.html" %}
+{% load static %}
+{% block pageContent %}
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <section class="erp-link-panel w-100">
+    <div class="erp-link-icon"><i class="bi bi-shield-lock"></i></div>
+    <div class="erp-link-eyebrow">SECURE BUSINESS CONNECTION</div>
+    <h1>Approve ERP shop connection</h1>
+    <p class="erp-link-lead">An ERP administrator is asking to connect a company to your POS shop. Review the details before allowing access.</p>
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    <div class="erp-link-summary">
+      <div><span>ERP company</span><strong>{{ link_request.company_name }}</strong><small>Requested by {{ link_request.requested_by|default:"ERP administrator" }}</small></div>
+      <div><span>POS shop</span><strong>{{ shop.name }}</strong><small>{{ shop.location|default:"Location not specified" }}</small></div>
+      <div><span>Requested access</span><strong>{% if link_request.branch_id %}Branch #{{ link_request.branch_id }}{% else %}All branches in this shop{% endif %}</strong><small>Read-only ERP reporting access</small></div>
+      <div><span>Request expires</span><strong>{{ link_request.expires_at|date:"d M Y, H:i" }}</strong><small>Harare local time</small></div>
+    </div>
+    <div class="alert alert-warning d-flex gap-2 align-items-start"><i class="bi bi-exclamation-triangle-fill mt-1"></i><div><strong>Only approve if you recognize this company.</strong><br>Approval does not share your POS password. The ERP receives access only to the shop scope shown above.</div></div>
+    <form method="post" class="erp-link-actions">
+      {% csrf_token %}<input type="hidden" name="token" value="{{ token }}">
+      <button type="submit" name="decision" value="rejected" class="btn btn-outline-secondary btn-lg">Reject request</button>
+      <button type="submit" name="decision" value="approved" class="btn btn-primary btn-lg" onclick="return confirm('Approve connecting {{ shop.name|escapejs }} to {{ link_request.company_name|escapejs }}?')"><i class="bi bi-check-circle me-1"></i> Approve connection</button>
+    </form>
+    <div class="erp-link-foot"><i class="bi bi-lock-fill"></i> Owner authentication verified · Approval is recorded in the audit trail</div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,587 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .an {
+    --an-border: #e5e7eb;
+    --an-muted: #6b7280;
+    --an-text: #111827;
+    --an-soft: #f3f4f6;
+    --an-accent: #1d5f8a;
+    --an-green: #15803d;
+    --an-red: #dc2626;
+    color: var(--an-text);
+    font-size: 14px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--an-border);
+    border-radius: 10px;
+    padding: 0 24px 28px;
+    min-width: 0;
+  }
+
+  /* ---------- header ---------- */
+  .an-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 10px; }
+  .an-crumb { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--an-border); border-radius: 6px; padding: 4px 10px; font-size: .85rem; background: #fff; }
+  .an-crumb small { color: var(--an-muted); }
+
+  /* ---------- buttons ---------- */
+  .an-btn { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--an-accent); background: var(--an-accent); color: #fff; font-size: .76rem; flex: none; display: inline-flex; align-items: center; text-decoration: none; }
+  .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
+  .an-btn.lg { height: 32px; font-size: .82rem; padding: 0 14px; }
+
+  /* ---------- filter bar: labels above boxes, wraps on small screens ---------- */
+  .an-filters {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px;
+    background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .an-filters .fl { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .72rem; color: var(--an-muted); white-space: nowrap; }
+  .an-filters .fl .lbl { font-weight: 600; line-height: 1; }
+  .an-filters .ttl { align-self: center; flex-direction: row; align-items: center; gap: 6px; font-weight: 600; font-size: .8rem; color: var(--an-text); }
+
+  .an-filters select,
+  .an-filters input[type=date] {
+    box-sizing: border-box !important;
+    height: 34px !important; min-height: 34px !important;
+    width: 150px !important; max-width: none !important;
+    margin: 0 !important; padding: 0 10px !important;
+    border: 1px solid var(--an-border) !important; border-radius: 6px !important;
+    font-size: .8rem !important; color: var(--an-text); background-color: #fff;
+  }
+  .an-filters .btn-row { display: flex; align-items: center; gap: 8px; }
+  .an-filters .an-btn { height: 34px !important; margin: 0; }
+  .an-filters .scope { margin-left: auto; align-self: center; font-size: .72rem; color: var(--an-muted); white-space: nowrap; }
+
+  /* ---------- tabs ---------- */
+  .an-tabbar { padding: 4px 0 18px; }
+  .an-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--an-border); background: var(--an-soft); border-radius: 8px; flex-wrap: wrap; }
+  .an-tab { border: 0; background: transparent; padding: 5px 14px; border-radius: 6px; font-size: .82rem; color: var(--an-muted); }
+  .an-tab:hover { color: var(--an-text); }
+  .an-tab.active { background: #fff; color: var(--an-text); box-shadow: 0 0 0 1px var(--an-border); font-weight: 500; }
+  .an-tab .dot { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--an-red); color: #fff; font-size: .68rem; line-height: 17px; text-align: center; }
+
+  .an-panel { display: none; }
+  .an-panel.active { display: block; }
+
+  /* ---------- headings, stats ---------- */
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 2px 0 16px; }
+  .an h3.sub { font-size: .95rem; font-weight: 600; margin: 0 0 12px; }
+  .an-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 28px; margin-bottom: 28px; }
+  .an-stat .l { color: var(--an-muted); font-size: .8rem; }
+  .an-stat .v { font-size: 1.5rem; font-weight: 600; margin-top: 6px; line-height: 1.15; }
+  .an-stat .v.sm { font-size: 1.05rem; }
+  .an-stat .n { color: var(--an-muted); font-size: .75rem; margin-top: 4px; }
+  .an-stat .v.pos { color: var(--an-green); }
+  .an-stat .v.neg { color: var(--an-red); }
+
+  /* ---------- cards ---------- */
+  .an-card { border: 1px solid var(--an-border); border-radius: 10px; padding: 14px 16px; background: #fff; min-width: 0; }
+  .an-card-title { font-weight: 600; font-size: .85rem; margin-bottom: 10px; }
+  .an-card-title small { color: var(--an-muted); font-weight: 400; margin-left: 6px; }
+
+  /* small graphs, one per card */
+  .an-minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .an-mini-box { position: relative; height: 130px; width: 100%; }
+
+  .an-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .an-card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+  /* summary rows (plain divs, so the global table tools do not turn them into a searchable table) */
+  .an-kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-kv:last-child { border-bottom: 0; }
+  .an-kv.b { font-weight: 600; }
+  .an-kv span:last-child { font-variant-numeric: tabular-nums; }
+
+  /* low stock list */
+  .an-stocklist { max-height: 250px; overflow-y: auto; }
+  .an-stockrow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 54px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f2f4; font-size: .83rem; }
+  .an-stockrow:last-child { border-bottom: 0; }
+  .an-stockrow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .an-stockrow .cat { color: var(--an-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .an-stockrow .qty { text-align: right; color: var(--an-red); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .an-table { width: 100%; border-collapse: collapse; }
+  .an-table th { color: var(--an-muted); font-weight: 400; font-size: .78rem; text-align: left; padding: 8px 0; border-bottom: 1px solid var(--an-border); }
+  .an-table th.r, .an-table td.r { text-align: right; }
+  .an-table td { padding: 9px 0; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-table tr:last-child td { border-bottom: 0; }
+  .an-table .b { font-weight: 600; }
+  .an-table-scroll { overflow-x: auto; }
+
+  /* ranked list with bars */
+  .an-rank { list-style: none; margin: 0; padding: 0; }
+  .an-rank li { display: grid; grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 3fr) 130px; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f1f2f4; font-size: .83rem; }
+  .an-rank li:last-child { border-bottom: 0; }
+  .an-rank .rk { color: var(--an-muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+  .an-rank .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .an-rank .track { display: block; height: 7px; border-radius: 999px; background: var(--an-soft); overflow: hidden; }
+  .an-rank .bar { display: block; height: 100%; border-radius: 999px; }
+  .an-rank .val { text-align: right; color: var(--an-muted); font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .an-empty { color: var(--an-muted); font-size: .85rem; padding: 12px 0; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .74rem; font-weight: 500; }
+  .pill.up { background: #dcfce7; color: #166534; }
+  .pill.down { background: #fee2e2; color: #991b1b; }
+  .pill.flat { background: var(--an-soft); color: var(--an-muted); }
+
+  .an-chart-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 8px 0 14px; }
+  .an-chart-head select { height: 30px; border: 1px solid var(--an-border); border-radius: 6px; padding: 0 8px; font-size: .8rem; background: #fff; }
+  .an-chart-box { position: relative; height: 320px; }
+
+  @media (max-width: 1100px) {
+    .an-minis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 900px) {
+    .an-duo { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .an { padding: 0 14px 22px; }
+    .an-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .an-filters .scope { margin-left: 0; }
+  }
+  @media (max-width: 560px) {
+    .an-minis { grid-template-columns: minmax(0, 1fr); }
+    .an-rank li { grid-template-columns: 22px minmax(0, 1fr) 96px; }
+    .an-rank .track { grid-column: 2 / -1; grid-row: 2; }
+  }
+</style>
+
+<div class="an mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+
+  <!-- ===== header ===== -->
+  <div class="an-head">
+    <span class="an-crumb">
+      <i class="bi bi-bar-chart-line"></i>
+      <small>{{ shop_name }}{% if branch_name %} &middot; {{ branch_name }}{% endif %}</small>
+    </span>
+  </div>
+
+  <!-- ===== filters ===== -->
+  <form method="get" class="an-filters" id="filterForm">
+    <span class="fl ttl"><i class="bi bi-funnel"></i> Filters</span>
+
+    {% if request.user.is_superuser and all_branches %}
+    <label class="fl"><span class="lbl">Branch</span>
+      <select name="branch_id">
+        <option value="">All</option>
+        {% for b in all_branches %}
+          <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+
+    <label class="fl"><span class="lbl">Period</span>
+      <select id="quickRange">
+        <option value="">Choose…</option>
+        <option value="today">Today</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="month">This month</option>
+      </select>
+    </label>
+
+    <label class="fl"><span class="lbl">From</span>
+      <input type="date" name="start_date" id="startDate" value="{{ start_date|default:'' }}">
+    </label>
+    <label class="fl"><span class="lbl">To</span>
+      <input type="date" name="end_date" id="endDate" value="{{ end_date|default:'' }}">
+    </label>
+
+    <div class="btn-row">
+      <button type="submit" class="an-btn">Apply</button>
+      <a href="{% url 'home-page' %}" class="an-btn ghost">Clear</a>
+    </div>
+
+    <span class="scope">{% if start_date and end_date %}{{ start_date }} to {{ end_date }}{% else %}All time{% endif %}</span>
+  </form>
+
+  {% if sales_notification %}
+  <div class="alert alert-success">{{ sales_notification }}</div>
+  {% endif %}
+
+  <!-- ===== tabs ===== -->
+  <div class="an-tabbar">
+    <div class="an-tabs" role="tablist">
+      <button type="button" class="an-tab active" data-tab="overview">Overview</button>
+      <button type="button" class="an-tab" data-tab="sales">Sales</button>
+      <button type="button" class="an-tab" data-tab="profit">Profit</button>
+    </div>
+  </div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="an-panel active" id="tab-overview">
+    <h2 class="title">Overview</h2>
+
+    <div class="an-stats">
+      <div class="an-stat"><div class="l">Total Sales (USD)</div><div class="v">${{ total_sales|floatformat:2|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Transactions</div><div class="v">{{ transaction|floatformat:0|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Quantity Sold</div><div class="v">{{ quantity|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Today's Sales</div><div class="v">${{ daily_sales|floatformat:2|intcomma }}</div></div>
+
+      <div class="an-stat"><div class="l">Products</div><div class="v">{{ products|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Categories</div><div class="v">{{ categories|intcomma }}</div></div>
+      <div class="an-stat"><div class="l">Total Expenses</div><div class="v">${{ total_expenses|floatformat:2|intcomma }}</div></div>
+      <div class="an-stat">
+        <div class="l">Net Profit</div>
+        <div class="v {% if net_profit < 0 %}neg{% else %}pos{% endif %}">${{ net_profit|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+
+    <!-- small graphs, each in its own card -->
+    <div class="an-minis">
+      <div class="an-card">
+        <div class="an-card-title">Monthly sales <small>USD</small></div>
+        <div class="an-mini-box"><canvas id="miniMonthly"></canvas></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Product mix <small>units</small></div>
+        <div class="an-mini-box"><canvas id="miniMix"></canvas></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">By currency <small>USD value</small></div>
+        <div class="an-mini-box"><canvas id="miniCurrency"></canvas></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Profit snapshot <small>USD</small></div>
+        <div class="an-mini-box"><canvas id="miniProfit"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top products: full width, first -->
+    <div class="an-card" style="margin-bottom:14px">
+      <div class="an-card-title">Top products <small>by units sold</small></div>
+      <ul class="an-rank" id="topProducts"></ul>
+      <div class="an-empty" id="topProductsEmpty" style="display:none">No sales yet</div>
+    </div>
+
+    <div class="an-duo">
+      <div class="an-card">
+        <div class="an-card-title">Summary <small>USD</small></div>
+        <div class="an-kv"><span>Sales</span><span>{{ total_sales|floatformat:2|intcomma }}</span></div>
+        <div class="an-kv"><span>Gross profit</span><span>{{ gross_profit|floatformat:2|intcomma }}</span></div>
+        <div class="an-kv"><span>Total expenses</span><span>{{ total_expenses|floatformat:2|intcomma }}</span></div>
+        <div class="an-kv b"><span>Net profit</span><span>{{ net_profit|floatformat:2|intcomma }}</span></div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-title an-card-title-row">
+          <span>Low stock <small>under 20 units{% if low_stock_count > 0 %} &middot; {{ low_stock_count }} item{{ low_stock_count|pluralize }}{% endif %}</small></span>
+          {% if low_stock_products %}<a href="{% url 'stock_page' %}" class="an-btn">Update stock</a>{% endif %}
+        </div>
+        {% if low_stock_products %}
+        <div class="an-stocklist">
+          {% for product in low_stock_products %}
+          <div class="an-stockrow">
+            <span class="nm">{{ product.name }}</span>
+            <span class="cat">{{ product.category.name|default:"-" }}</span>
+            <span class="qty">{{ product.stock }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="an-empty">No products are running low.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SALES ================= -->
+  <section class="an-panel" id="tab-sales">
+    <h2 class="title">Sales</h2>
+
+    <div class="an-stats">
+      <div class="an-stat">
+        <div class="l">Today (USD value)</div>
+        <div class="v">${{ daily_sales|floatformat:2|intcomma }}</div>
+        <div class="n">Yesterday: ${{ yesterday_sales|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Growth vs yesterday</div>
+        <div class="v {% if sales_growth >= 0 %}pos{% else %}neg{% endif %}">{{ sales_growth|floatformat:2 }}%</div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Top month</div>
+        <div class="v sm">{% if highest_sales_month %}{{ highest_sales_month }}{% else %}-{% endif %}</div>
+        <div class="n">${{ highest_sales_amount|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Top product</div>
+        <div class="v sm">{{ top_product_name }}</div>
+        <div class="n">{{ top_product_qty }} sold</div>
+      </div>
+    </div>
+
+    <h3 class="sub">Sales by currency</h3>
+    <div class="an-table-scroll" style="margin-bottom:30px">
+      <table class="an-table table-no-tools">
+        <thead>
+          <tr>
+            <th>Currency</th><th class="r">Sales</th><th class="r">Total</th><th class="r">USD value</th>
+            <th class="r">Today</th><th class="r">Yesterday</th><th class="r">Change</th><th>Top month</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in currency_sales %}
+          <tr>
+            <td class="b">{{ c.currency }}</td>
+            <td class="r">{{ c.count }}</td>
+            <td class="r">{{ c.total|floatformat:2|intcomma }}</td>
+            <td class="r">{{ c.usd_value|floatformat:2|intcomma }}</td>
+            <td class="r">{{ c.today|floatformat:2|intcomma }}</td>
+            <td class="r">{{ c.yesterday|floatformat:2|intcomma }}</td>
+            <td class="r"><span class="pill {% if c.growth > 0 %}up{% elif c.growth < 0 %}down{% else %}flat{% endif %}">{{ c.growth|floatformat:1 }}%</span></td>
+            <td>{% if c.top_month %}{{ c.top_month }} ({{ c.top_month_amount|floatformat:2|intcomma }}){% else %}-{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="an-empty">No sales yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="an-chart-head">
+      <h3 class="sub" style="margin:0">Monthly sales</h3>
+      <div style="display:flex; gap:8px; align-items:center">
+        <select id="chartModeSelect">
+          <option value="amount">Amounts in each currency</option>
+          <option value="usd">USD value (compare)</option>
+        </select>
+        <button id="toggleChartBtn" type="button" class="an-btn ghost lg">Switch to Bar</button>
+      </div>
+    </div>
+    <div class="an-chart-box"><canvas id="monthlySalesChart"></canvas></div>
+  </section>
+
+  <!-- ================= PROFIT ================= -->
+  <section class="an-panel" id="tab-profit">
+    <h2 class="title">Profit</h2>
+
+    <div class="an-stats">
+      <div class="an-stat"><div class="l">Actual profit</div><div class="v">${{ actual_profit|floatformat:2|intcomma }}</div><div class="n">Sold products, before expenses</div></div>
+      <div class="an-stat"><div class="l">Loss on products</div><div class="v">${{ total_loss|floatformat:2|intcomma }}</div><div class="n">Sold below cost</div></div>
+      <div class="an-stat"><div class="l">Gross profit</div><div class="v">${{ gross_profit|floatformat:2|intcomma }}</div><div class="n">Actual profit minus loss</div></div>
+      <div class="an-stat"><div class="l">Expected profit</div><div class="v">${{ expected_profit|floatformat:2|intcomma }}</div><div class="n">If all stock is sold</div></div>
+
+      <div class="an-stat"><div class="l">Fixed costs</div><div class="v">${{ fixed_costs|floatformat:2|intcomma }}</div><div class="n">Rent, salaries, etc.</div></div>
+      <div class="an-stat"><div class="l">Variable costs</div><div class="v">${{ variable_costs|floatformat:2|intcomma }}</div><div class="n">Change with sales</div></div>
+      <div class="an-stat"><div class="l">Shift expenses</div><div class="v">${{ shift_expenses|floatformat:2|intcomma }}</div><div class="n">Logged at the POS</div></div>
+      <div class="an-stat"><div class="l">Total expenses</div><div class="v">${{ total_expenses|floatformat:2|intcomma }}</div><div class="n">Fixed + variable + shift</div></div>
+    </div>
+
+    <div class="an-stats" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+      <div class="an-stat">
+        <div class="l">Net profit (after all expenses)</div>
+        <div class="v {% if net_profit < 0 %}neg{% else %}pos{% endif %}">${{ net_profit|floatformat:2|intcomma }}</div>
+        <div class="n">{{ net_margin|floatformat:1 }}% of sales{% if net_profit < 0 %} &middot; running at a loss{% endif %}</div>
+      </div>
+      <div class="an-stat">
+        <div class="l">Top profit product</div>
+        <div class="v sm">{% if top_profit_product %}{{ top_profit_product }}{% else %}-{% endif %}</div>
+        {% if top_profit_product %}<div class="n">${{ top_profit_value|floatformat:2|intcomma }}</div>{% endif %}
+      </div>
+      <div class="an-stat">
+        <div class="l">Biggest loss product</div>
+        <div class="v sm">{% if loss_product %}{{ loss_product }}{% else %}None{% endif %}</div>
+        {% if loss_product %}<div class="n">${{ loss_value|floatformat:2|intcomma }}</div>{% endif %}
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const PALETTE = ['#1d5f8a', '#0e9f6e', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#db2777'];
+  const charts = {};
+
+  /* ---------- filters ---------- */
+  const form = document.getElementById('filterForm');
+  const startEl = document.getElementById('startDate');
+  const endEl = document.getElementById('endDate');
+
+  function fmt(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  document.getElementById('quickRange').addEventListener('change', function () {
+    const v = this.value;
+    if (!v) return;
+    let s = new Date(), e = new Date();
+    if (v === '7') s.setDate(s.getDate() - 6);
+    else if (v === '30') s.setDate(s.getDate() - 29);
+    else if (v === 'month') s = new Date(s.getFullYear(), s.getMonth(), 1);
+    startEl.value = fmt(s);
+    endEl.value = fmt(e);
+    form.submit();
+  });
+
+  // the dashboard only filters when BOTH dates are set, so a single date means that one day
+  form.addEventListener('submit', function () {
+    if (startEl.value && !endEl.value) endEl.value = startEl.value;
+    if (endEl.value && !startEl.value) startEl.value = endEl.value;
+  });
+
+  /* ---------- tabs ---------- */
+  const tabs = document.querySelectorAll('.an-tab');
+  const panels = document.querySelectorAll('.an-panel');
+
+  function showTab(name) {
+    if (!document.getElementById('tab-' + name)) name = 'overview';
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+    Object.values(charts).forEach(c => c && c.resize());   // charts built while hidden need a resize
+    history.replaceState(null, '', location.search + '#' + name);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  showTab((location.hash || '').replace('#', '') || 'overview');
+
+  /* ---------- data ---------- */
+  const labels = {{ product_labels|safe }};
+  const qtys = {{ product_sales|safe }};
+  const total = qtys.reduce((a, b) => a + b, 0);
+  const top = labels.map((l, i) => ({ name: l, qty: qtys[i] }))
+    .sort((a, b) => b.qty - a.qty).slice(0, 8);
+
+  const curLabels = [{% for c in currency_sales %}"{{ c.currency|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}];
+  const curUsd = [{% for c in currency_sales %}{{ c.usd_value|stringformat:"f" }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+  const gross = {{ gross_profit|stringformat:"f" }};
+  const expenses = {{ total_expenses|stringformat:"f" }};
+  const net = {{ net_profit|stringformat:"f" }};
+
+  /* ---------- top products list ---------- */
+  const list = document.getElementById('topProducts');
+  if (!top.length) {
+    document.getElementById('topProductsEmpty').style.display = 'block';
+  } else {
+    const max = top[0].qty || 1;
+    top.forEach((p, i) => {
+      const li = document.createElement('li');
+      const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = i + 1;
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.name; nm.title = p.name;
+      const track = document.createElement('span'); track.className = 'track';
+      const bar = document.createElement('span'); bar.className = 'bar';
+      bar.style.width = (p.qty / max * 100) + '%';
+      bar.style.background = PALETTE[i % PALETTE.length];
+      track.appendChild(bar);
+      const val = document.createElement('span'); val.className = 'val';
+      const pct = total ? (p.qty / total * 100).toFixed(1) : '0.0';
+      val.textContent = p.qty.toLocaleString() + ' \u00b7 ' + pct + '%';
+      li.append(rk, nm, track, val);
+      list.appendChild(li);
+    });
+  }
+
+  /* ---------- small graphs ---------- */
+  const tick = { font: { size: 9 }, color: '#6b7280' };
+  const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+  function mini(id, cfg) {
+    const el = document.getElementById(id);
+    if (el) charts[id] = new Chart(el.getContext('2d'), cfg);
+  }
+
+  mini('miniMonthly', {
+    type: 'line',
+    data: {
+      labels: {{ monthly_labels|safe }},
+      datasets: [{ data: {{ monthly_sales|safe }}, borderColor: '#1d5f8a', backgroundColor: 'rgba(29,95,138,.15)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }]
+    },
+    options: Object.assign({}, base, {
+      scales: {
+        x: { grid: { display: false }, ticks: Object.assign({ maxTicksLimit: 4 }, tick) },
+        y: { beginAtZero: true, grid: { color: '#f1f2f4' }, ticks: Object.assign({ maxTicksLimit: 3 }, tick) }
+      }
+    })
+  });
+
+  mini('miniMix', {
+    type: 'doughnut',
+    data: {
+      labels: top.map(p => p.name),
+      datasets: [{ data: top.map(p => p.qty), backgroundColor: top.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: '#fff', borderWidth: 1 }]
+    },
+    options: Object.assign({}, base, { cutout: '62%' })
+  });
+
+  mini('miniCurrency', {
+    type: 'bar',
+    data: {
+      labels: curLabels,
+      datasets: [{ data: curUsd, backgroundColor: curLabels.map((_, i) => PALETTE[i % PALETTE.length]), borderRadius: 4, maxBarThickness: 28 }]
+    },
+    options: Object.assign({}, base, {
+      scales: {
+        x: { grid: { display: false }, ticks: tick },
+        y: { beginAtZero: true, grid: { color: '#f1f2f4' }, ticks: Object.assign({ maxTicksLimit: 3 }, tick) }
+      }
+    })
+  });
+
+  mini('miniProfit', {
+    type: 'bar',
+    data: {
+      labels: ['Gross', 'Expenses', 'Net'],
+      datasets: [{ data: [gross, expenses, net], backgroundColor: ['#0e9f6e', '#d97706', net >= 0 ? '#1d5f8a' : '#dc2626'], borderRadius: 4, maxBarThickness: 36 }]
+    },
+    options: Object.assign({}, base, {
+      scales: {
+        x: { grid: { display: false }, ticks: tick },
+        y: { grid: { color: '#f1f2f4' }, ticks: Object.assign({ maxTicksLimit: 3 }, tick) }
+      }
+    })
+  });
+
+  /* ---------- monthly sales by currency (Sales tab) ---------- */
+  const cd = {{ monthly_currency_data|safe }};
+  const mctx = document.getElementById('monthlySalesChart').getContext('2d');
+  let type = 'line';
+  let mode = 'amount';     // 'amount' = each currency's own amounts, 'usd' = USD value
+
+  function buildMonthly() {
+    if (charts.monthly) charts.monthly.destroy();
+
+    const datasets = Object.keys(cd.series).map(cur => {
+      const col = cd.colors[cur] || '#6b7280';
+      return {
+        label: mode === 'usd' ? cur + ' (USD value)' : cur,
+        data: cd.series[cur][mode],
+        borderColor: col,
+        backgroundColor: type === 'line' ? col + '33' : col + 'cc',
+        borderWidth: 2, fill: false, tension: 0.35, pointRadius: 3, borderRadius: 4,
+        yAxisID: (mode === 'amount' && cur !== 'USD') ? 'y1' : 'y'
+      };
+    });
+
+    const scales = {
+      x: { grid: { display: false } },
+      y: { beginAtZero: true, grid: { color: '#eef0f5' }, title: { display: true, text: mode === 'amount' ? 'USD' : 'Sales (USD value)' } }
+    };
+    if (mode === 'amount' && datasets.some(d => d.yAxisID === 'y1')) {
+      scales.y1 = { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Other currencies' } };
+    }
+
+    charts.monthly = new Chart(mctx, {
+      type: type,
+      data: { labels: cd.labels, datasets: datasets },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: scales }
+    });
+  }
+  buildMonthly();
+
+  document.getElementById('toggleChartBtn').addEventListener('click', function () {
+    type = type === 'line' ? 'bar' : 'line';
+    buildMonthly();
+    this.textContent = type === 'line' ? 'Switch to Bar' : 'Switch to Line';
+  });
+  document.getElementById('chartModeSelect').addEventListener('change', function () {
+    mode = this.value;
+    buildMonthly();
+  });
+});
+</script>
+{% endblock pageContent %}

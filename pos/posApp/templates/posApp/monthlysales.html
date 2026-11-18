@@ -1,0 +1,100 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2 px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Monthly Sales Report</h4>
+      <form method="get" class="d-flex gap-2">
+        <select name="year" class="form-select form-select-sm">
+          {% for y in years %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
+              {{ y }}
+            </option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-primary">Filter</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card p-3">
+
+    <div class="accordion" id="monthlySalesAccordion">
+
+      {% for month, products in monthly_top_products.items %}
+      <div class="accordion-item mb-3">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed fw-bold"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#month{{ forloop.counter }}">
+            {{ month|date:"F Y" }}
+          </button>
+        </h2>
+        <div id="month{{ forloop.counter }}" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            <canvas id="chart{{ forloop.counter }}" height="120" class="mb-4"></canvas>
+            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+              <table class="table pos-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Product</th>
+                    <th>Quantity Sold</th>
+					<th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for product in products %}
+                  <tr {% if forloop.first %}class="table-warning"{% endif %}>
+                    <td>
+                      {{ forloop.counter }}
+                      {% if forloop.first %}
+                        <span class="badge bg-success ms-2">Top</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ product.product__name }}</td>
+                    <td>{{ product.total_sold }}</td>
+					<td>${{product.total_profit|floatformat:2}}</td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="3">No sales data available.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% for month, products in monthly_top_products.items %}
+new Chart(document.getElementById("chart{{ forloop.counter }}"), {
+    type: "bar",
+    data: {
+        labels: [{% for p in products %}"{{ p.product__name }}",{% endfor %}],
+        datasets: [{
+            data: [{% for p in products %}{{ p.total_sold }},{% endfor %}],
+            backgroundColor: "#0d6efd"
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } }
+    }
+});
+{% endfor %}
+</script>
+
+{% endblock pageContent %}

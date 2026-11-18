@@ -1,0 +1,133 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">
+      <i class="bi bi-activity me-2"></i> User Activity Log
+    </h2>
+  </div>
+
+  <!-- Filter Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        <!-- User -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">User</label>
+          <select name="user" class="form-select form-select-sm">
+            <option value="">All Users</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if selected_user == u.id|stringformat:"s" %}selected{% endif %}>
+              {{ u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Action -->
+        <div class="col-md-2">
+          <label class="form-label fw-semibold">Action</label>
+          <select name="action" class="form-select form-select-sm">
+            <option value="">All Actions</option>
+            <option value="view" {% if selected_action == "view" %}selected{% endif %}>Viewed</option>
+            <option value="create" {% if selected_action == "create" %}selected{% endif %}>Created</option>
+            <option value="update" {% if selected_action == "update" %}selected{% endif %}>Updated</option>
+            <option value="delete" {% if selected_action == "delete" %}selected{% endif %}>Deleted</option>
+            <option value="login" {% if selected_action == "login" %}selected{% endif %}>Login</option>
+            <option value="logout" {% if selected_action == "logout" %}selected{% endif %}>Logout</option>
+          </select>
+        </div>
+
+        <!-- Date From -->
+        <div class="col-md-2">
+          <label class="form-label fw-semibold">From</label>
+          <input type="date" name="start_date" class="form-control form-control-sm"
+                 value="{{ start_date }}">
+        </div>
+
+        <!-- Date To -->
+        <div class="col-md-2">
+          <label class="form-label fw-semibold">To</label>
+          <input type="date" name="end_date" class="form-control form-control-sm"
+                 value="{{ end_date }}">
+        </div>
+
+        <!-- Submit -->
+        <div class="col-md-3 text-end">
+          <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-funnel me-1"></i> Filter
+          </button>
+          <a href="{% url 'activity_log' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-repeat me-1"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Activity Table -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table pos-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Shop</th>
+              <th>Branch</th>
+              <th>Action</th>
+              <th>Page</th>
+              <th>Details</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td><i class="bi bi-person-circle me-1 text-secondary"></i>{{ log.user.username }}</td>
+              <td>{{ log.shop.name }}</td>
+              <td>{{ log.branch.name }}</td>
+              <td>
+                {% if log.action == "create" %}
+                  <span class="badge bg-success">Created</span>
+                {% elif log.action == "update" %}
+                  <span class="badge bg-warning text-dark">Updated</span>
+                {% elif log.action == "delete" %}
+                  <span class="badge bg-danger">Deleted</span>
+                {% elif log.action == "login" %}
+                  <span class="badge bg-primary">Login</span>
+                {% elif log.action == "logout" %}
+                  <span class="badge bg-secondary">Logout</span>
+                {% else %}
+                  <span class="badge bg-info">Viewed</span>
+                {% endif %}
+              </td>
+              <td>
+                {{ log.page }}
+                {% if log.url %}
+                  <br>
+                  <a href="{{ log.url }}" target="_blank" class="text-decoration-none small text-muted">
+                    {{ log.url }}
+                  </a>
+                {% endif %}
+              </td>
+              <td>{{ log.details|default:"—" }}</td>
+              <td><small class="text-muted">{{ log.timestamp|date:"Y-m-d H:i" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">
+                <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                No activity found
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock pageContent %}

@@ -1,0 +1,146 @@
+{% extends "posApp/base.html" %}
+{% block pageContent %}
+
+<!-- Top Product Card -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12 mb-4">
+  <div class="card shadow-lg border-success">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0">🏆 Most Purchased Product (This Month)</h5>
+      {% if top_product_card %}
+        <span class="badge bg-light text-success fw-bold">Top Seller</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      {% if top_product_card %}
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Product:</strong> {{ top_product_card.name }}</p>
+            <p><strong>Quantity Purchased:</strong> <span class="text-primary">{{ top_product_card.quantity }}</span></p>
+            <p><strong>Selling Price:</strong> ${{ top_product_card.selling_price }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Cost Price:</strong> ${{ top_product_card.cost_price }}</p>
+            <p><strong>Expected Revenue:</strong> ${{ top_product_card.expected_revenue }}</p>
+            <p><strong>Expected Profit:</strong> <span class="text-success">${{ top_product_card.expected_profit }}</span></p>
+          </div>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No purchases recorded this month.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Purchase Orders Table -->
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive" style="overflow-x:auto; max-height:600px;">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Supplier</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Payment Method</th>
+            <th>Cost Price</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Received By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            {% with order.credits.first as credit %}
+            <tr>
+              <td>{{ order.id }}</td>
+              <td>{{ order.supplier.name|default:"N/A" }}</td>
+              <td>{{ order.product.name|default:"N/A" }}</td>
+              <td>{{ order.quantity }}</td>
+              <td>
+                {% if order.payment_method == 'cash' %}
+                  <span class="badge bg-success text-white">Cash</span>
+                {% elif order.payment_method == 'credit' %}
+                  <span class="badge bg-warning text-dark">Credit</span>
+                {% else %}
+                  {{ order.payment_method|default:"N/A" }}
+                {% endif %}
+              </td>
+              <td>${{ order.cost_price|floatformat:2 }}</td>
+              <td>
+                {% if order.payment_method == 'credit' %}
+                  {% if credit %}
+                    {% if credit.status == 'paid' %}
+                      <span class="badge bg-success">Paid</span>
+                    {% elif credit.status == 'partial' %}
+                      <span class="badge bg-warning text-dark">Partial</span>
+                    {% else %}
+                      <span class="badge bg-danger">Pending</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="badge bg-danger">Pending</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-success">Paid</span>
+                {% endif %}
+              </td>
+              <td>{{ order.date|date:"Y-m-d H:i" }}</td>
+              <td>{{ order.added_by.username }}</td>
+              <td>
+                <button class="btn btn-sm btn-info" onclick="viewPurchaseOrder({{ order.id }})">
+                  View
+                </button>
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="10" class="text-center">No purchase orders yet</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Purchase Order Modal -->
+<div class="modal fade" id="purchaseOrderModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Purchase Order Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="purchase-order-modal-body">
+        <p>Loading...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+function viewPurchaseOrder(orderId){
+    const modalBody = $('#purchase-order-modal-body');
+    modalBody.html('<p>Loading...</p>');
+    const myModal = new bootstrap.Modal(document.getElementById('purchaseOrderModal'));
+    myModal.show();
+
+    $.ajax({
+        url: "{% url 'purchase-order-view' %}?id=" + orderId,
+        method: "GET",
+        success: function(resp){
+            modalBody.html(resp);
+        },
+        error: function(err){
+            console.error(err);
+            modalBody.html('<p class="text-danger">Failed to load order details.</p>');
+        }
+    });
+}
+</script>
+{% endblock ScriptBlock %}

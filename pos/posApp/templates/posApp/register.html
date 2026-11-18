@@ -1,0 +1,250 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | MS POS</title>
+  <link rel="stylesheet" href="{% static 'posApp/assets/bootstrap/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'posApp/assets/material-admin/css/demo/style.css' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'posAPP/css/consistent-tables.css' %}">
+  <script src="{% static 'posApp/assets/default/js/jquery-3.6.0.min.js' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+</head>
+
+<body>
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-head">
+        <img src="{% static 'posAPP/ICOM.png' %}" alt="Logo">
+        <h3>MS POS SYSTEM</h3>
+        <p>Create your account and enjoy a 1-month free trial</p>
+      </div>
+
+      <div class="auth-body">
+        <!-- Alert placeholder -->
+        <div id="alert-box"></div>
+
+        <form method="POST" id="register-user" class="pos-form">
+          {% csrf_token %}
+          <div class="pos-form-grid">
+
+            <div class="auth-section-label">Personal details</div>
+
+            <div class="pos-field">
+              <label for="firstname" class="form-label">First Name</label>
+              <input type="text" name="firstname" id="firstname" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="lastname" class="form-label">Last Name</label>
+              <input type="text" name="lastname" id="lastname" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="email" class="form-label">Email</label>
+              <input type="email" name="email" id="email" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="phone_number" class="form-label">Phone Number</label>
+              <input type="text" name="phone_number" id="phone_number" class="form-control" required>
+            </div>
+
+            <div class="pos-field full">
+              <label for="country" class="form-label">Country</label>
+              <div class="d-flex align-items-center gap-2">
+                <select name="country" id="country" class="form-control">
+                  <option value="">-- Select Country --</option>
+                </select>
+                <img id="flagDisplay" src="" alt="" style="height: 25px; border-radius: 4px;">
+              </div>
+            </div>
+
+            <div class="auth-section-label">Business</div>
+
+            <div class="pos-field">
+              <label for="business_name" class="form-label">Business Name</label>
+              <input type="text" name="business_name" id="business_name" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="business_type" class="form-label">Business Type</label>
+              <select name="business_type" id="business_type" class="form-control" required>
+                <option value="">-- Select Business Type --</option>
+                <option value="restaurant">Restaurant</option>
+                <option value="coffee_shop">Coffee Shop</option>
+                <option value="bar">Bar</option>
+                <option value="grocery">Grocery</option>
+                <option value="salon">Salon &amp; Personal Care</option>
+                <option value="leisure">Leisure &amp; Entertainment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="pos-field">
+              <label for="shop_name" class="form-label">Shop Name</label>
+              <input type="text" name="shop_name" id="shop_name" class="form-control" placeholder="e.g. Mnoda's Supermarket">
+            </div>
+
+            <div class="pos-field">
+              <label for="branch_name" class="form-label">Branch Name</label>
+              <input type="text" name="branch_name" id="branch_name" class="form-control" placeholder="e.g. Main Branch" required>
+            </div>
+
+            <div class="auth-section-label">Sign-in</div>
+
+            <div class="pos-field full">
+              <label for="username" class="form-label">Username</label>
+              <input type="text" name="username" id="username" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="password" class="form-label">Password</label>
+              <input type="password" name="password" id="password" class="form-control" required>
+            </div>
+
+            <div class="pos-field">
+              <label for="confirm_password" class="form-label">Confirm Password</label>
+              <input type="password" name="confirm_password" id="confirm_password" class="form-control" required>
+            </div>
+
+            <div class="pos-field full">
+              <div class="pos-switch-row">
+                <input class="form-check-input" type="checkbox" id="agree" required>
+                <label class="form-check-label" for="agree">
+                  I agree to the <a href="{% url 'terms' %}">Terms &amp; Conditions</a>
+                </label>
+              </div>
+            </div>
+
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 mt-4">Create account</button>
+        </form>
+      </div>
+
+      <div class="auth-foot">
+        Already have an account? <a href="{% url 'login-user' %}">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ✅ CSRF helper
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        document.cookie.split(';').forEach(function(cookie) {
+          cookie = cookie.trim();
+          if (cookie.startsWith(name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          }
+        });
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    $.ajaxSetup({ headers: { 'X-CSRFToken': csrftoken } });
+
+    // ✅ Populate countries
+   
+
+
+$(document).ready(function() {
+  const countrySelect = document.getElementById("country");
+  const flagDisplay = document.getElementById("flagDisplay");
+
+  const fallbackCountries = [
+    { name: "Angola", code: "ao" },
+	{ name: "Botswana", code: "bw" },
+  { name: "Comoros", code: "km" },
+  { name: "Democratic Republic of the Congo", code: "cd" },
+  { name: "Eswatini", code: "sz" },
+  { name: "Lesotho", code: "ls" },
+  { name: "Madagascar", code: "mg" },
+  { name: "Malawi", code: "mw" },
+  { name: "Mauritius", code: "mu" },
+  { name: "Mozambique", code: "mz" },
+  { name: "Namibia", code: "na" },
+  { name: "Seychelles", code: "sc" },
+  { name: "South Africa", code: "za" },
+  { name: "Tanzania", code: "tz" },
+  { name: "Zambia", code: "zm" },
+  { name: "Zimbabwe", code: "zw" }
+  ];
+
+  function populate(countries) {
+    countries.forEach(c => {
+      const option = document.createElement("option");
+      option.value = c.name;
+      option.textContent = c.name;
+      option.dataset.flag = c.flag || `https://flagcdn.com/w40/${c.code}.png`;
+      countrySelect.appendChild(option);
+    });
+  }
+
+  fetch("https://restcountries.com/v3.1/all?fields=name,flags")
+    .then(res => {
+      if (!res.ok) throw new Error("Bad response: " + res.status);
+      return res.json();
+    })
+    .then(data => {
+      data.sort((a, b) => a.name.common.localeCompare(b.name.common));
+      const countries = data.map(c => ({ name: c.name.common, flag: c.flags?.png }));
+      populate(countries);
+    })
+    .catch(err => {
+      console.error("Failed to load countries from API, using fallback:", err);
+      populate(fallbackCountries);
+    });
+
+  countrySelect.addEventListener("change", function() {
+    const flagUrl = this.options[this.selectedIndex]?.dataset.flag || '';
+    flagDisplay.src = flagUrl;
+  });
+});
+
+    // ✅ AJAX form submission
+    $('#register-user').submit(function(e) {
+      e.preventDefault();
+
+      const password = $('#password').val();
+      const confirm = $('#confirm_password').val();
+      if (password !== confirm) {
+        showAlert('danger', 'Passwords does not match!');
+        return;
+      }
+
+      $.ajax({
+        url: "{% url 'register-user' %}",
+        method: "POST",
+        data: $(this).serialize(),
+        success: function(resp) {
+          if (resp.status === 'success') {
+            showAlert('success', '🎉 Account created! Redirecting to Homepage...');
+            setTimeout(() => window.location.href = resp.redirect_url, 1500);
+          } else {
+            showAlert('danger', resp.message || 'Registration failed. Try again later!');
+          }
+        },
+        error: function(xhr) {
+          showAlert('danger', xhr.responseJSON?.message || 'An error occurred. Try again later!');
+        }
+      });
+    });
+
+    // ✅ Bootstrap alert helper
+    function showAlert(type, message) {
+      $('#alert-box').html(`
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `);
+    }
+  </script>
+</body>
+</html>

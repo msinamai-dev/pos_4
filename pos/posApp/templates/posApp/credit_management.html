@@ -1,0 +1,151 @@
+{% extends "posApp/base.html" %}
+
+{% block pageContent %}
+
+
+ <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="card-title mb-0">Credit management & payments</h4>
+    </div>
+  </div>
+</div>
+
+<div id="alert-container" class="mb-3"></div>
+
+<div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12">
+  <div class="mdc-card">
+    <div class="table-responsive">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+     <th>#</th>
+     <th>Supplier</th>
+      <th>Product</th>
+     <th>Total Amount</th>
+      <th>Paid</th>
+     <th>Remaining</th>
+      <th>Due Date</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for credit in credits %}
+      <tr>
+         <td class="text-center">{{ credit.id }}</td>
+         <td class="text-center">{{ credit.purchase_order.supplier.name|default:"N/A" }}</td>
+        <td class="text-center">{{ credit.purchase_order.product.name|default:"N/A" }}</td>
+ <td class="text-center">${{ credit.total_amount }}</td>
+        <td class="text-center">${{ credit.paid_amount }}</td>
+         <td class="text-center">${{ credit.remaining_amount }}</td>
+        <td class="text-center">
+          {{ credit.due_date|date:"d M Y" }}
+          {% if credit.status != 'paid' %}
+            {% if credit.days_left < 0 %}
+              <br><span class="badge bg-dark">Overdue</span>
+            {% elif credit.days_left == 0 %}
+              <br><span class="badge bg-danger">Due today</span>
+            {% elif credit.days_left <= 7 %}
+              <br><span class="badge bg-warning text-dark">{{ credit.days_left }} day{{ credit.days_left|pluralize }} left</span>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if credit.status == 'paid' %}
+            <span class="badge bg-success">Paid</span>
+          {% elif credit.status == 'partial' %}
+            <span class="badge bg-warning text-dark">Partial</span>
+          {% else %}
+            <span class="badge bg-danger">Pending</span>
+          {% endif %}
+        </td>
+         <td class="text-center">
+          {% if credit.status != 'paid' %}
+            <button class="btn btn-sm btn-primary mb-1" onclick="openCreditModal({{ credit.id }}, 'pay')">
+              Pay
+            </button>
+          {% endif %}
+          <button class="btn btn-sm btn-info" onclick="openCreditModal({{ credit.id }}, 'view')">
+            View
+          </button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="9" class="text-center">No credits pending</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Credit Modal -->
+<div class="modal fade" id="creditModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-3">
+      <div class="modal-header">
+        <h5 class="modal-title" id="creditModalTitle">Credit Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="credit-modal-body">
+        <p>Loading...</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock pageContent %}
+
+{% block ScriptBlock %}
+<script>
+function showAlert(message, type='success', duration=3000){
+    const html = `<div class="alert alert-${type} d-inline-block">${message}</div>`;
+    $('#alert-container').html(html);
+    if(duration>0) setTimeout(() => $('#alert-container').html(''), duration);
+}
+
+function openCreditModal(creditId, mode){
+    $('#credit-modal-body').html('<p>Loading...</p>');
+    const myModal = new bootstrap.Modal(document.getElementById('creditModal'));
+    myModal.show();
+
+    $.ajax({
+        url: "{% url 'credit-modal-form' %}?id=" + creditId + "&mode=" + mode,
+        method: "GET",
+        success: function(resp){
+            $('#credit-modal-body').html(resp);
+
+            if(mode === 'pay'){
+                // Handle credit payment form submission
+                $('#credit-form').off('submit').on('submit', function(e){
+                    e.preventDefault();
+                    const formData = $(this).serialize();
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        method: "POST",
+                        headers: {"X-CSRFToken": "{{ csrf_token }}"},
+                        data: formData,
+                        success: function(res){
+                            if(res.status=='success'){
+                                showAlert(res.msg || 'Payment successful');
+                                myModal.hide();
+                                location.reload(); // Refresh table after payment
+                            } else {
+                                showAlert(res.msg || 'Payment failed', 'danger');
+                            }
+                        },
+                        error: function(err){
+                            console.error(err);
+                            showAlert('Error processing payment', 'danger');
+                        }
+                    });
+                });
+            }
+        },
+        error: function(err){
+            console.error(err);
+            $('#credit-modal-body').html('<p class="text-danger">Failed to load credit info.</p>');
+        }
+    });
+}
+</script>
+{% endblock ScriptBlock %}

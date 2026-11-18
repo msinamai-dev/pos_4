@@ -1,0 +1,163 @@
+{% load humanize static %}
+
+{# Receipt VIEW (opened from reports). Sales print automatically after checkout; Reprint sends it to the printer again. #}
+
+<style>
+#receipt-container {
+    max-width: {{ fmt.paper_width|default:paper_width }}mm;
+    margin: auto;
+    font-family: Arial, sans-serif;
+    padding-top: {{ fmt.margin_top|default:margin_top }}px;
+    padding-bottom: {{ fmt.margin_bottom|default:margin_bottom }}px;
+}
+#receipt-container hr { margin: 4px 0; border-top: 1px dashed #000; }
+#receipt-container .text-center { text-align: center; }
+</style>
+
+<div id="receipt-container">
+
+    <!-- Header -->
+    <div class="text-center mb-2">
+        {% if fmt.logo %}
+            <img src="{% get_media_prefix %}{{ fmt.logo }}" alt="Logo" style="max-height:50px; margin-bottom:5px;">
+        {% else %}
+            <span style="font-size:24px; border-radius:50%; border:2px solid black; padding:0 10px; display:inline-block;">
+                {{ fmt.initials }}
+            </span>
+        {% endif %}
+
+        <h3 style="margin:5px 0 0;">
+            {{ fmt.header_name|upper }}
+        </h3>
+        <hr>
+
+        <p style="margin:0; font-size:13px;">Cashier: {{ user.first_name|title }} {{ user.last_name|title }}</p>
+        {% if transaction.customer_name %}
+            <p style="margin:0; font-size:13px;">Customer: {{ transaction.customer_name|title }}</p>
+        {% endif %}
+
+        <p style="margin:2px 0;"><strong>Currency:</strong> {{ currency }}</p>
+    </div>
+
+    <hr>
+
+    <!-- Transaction Info -->
+    <div style="font-size:13px;">
+        <p style="margin:2px 0;"><strong>Date:</strong> {{ transaction.date_added|date:"d M, Y H:i" }}</p>
+        <p style="margin:2px 0;"><strong>Transaction Code:</strong> {{ transaction.code }}</p>
+        <p style="margin:2px 0;"><strong>Receipt No:</strong> {{ transaction.receipt_number|default:"N/A" }}</p>
+    </div>
+
+    <!-- Products -->
+    <div style="font-size:13px; margin-top:5px;">
+        <div style="display:flex; font-weight:bold; border-bottom:1px dashed #000; padding-bottom:3px;">
+            <div style="width:10%; text-align:center;">Qty</div>
+            <div style="width:50%; text-align:left;">Product</div>
+            <div style="width:20%; text-align:right;">Price</div>
+            <div style="width:20%; text-align:right;">Total</div>
+        </div>
+
+        {% for item in salesItems %}
+        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+            <div style="width:10%; text-align:center;">{{ item.qty }}</div>
+            <div style="width:50%; text-align:left;">
+                {{ item.product.name }}
+                {% if item.tax_type == "inclusive" %}
+                    <br><small>(Incl: {{ item.product.inclusive_tax }}%)</small>
+                {% elif item.tax_type == "exclusive" %}
+                    <br><small>(Excl: {{ item.product.exclusive_tax }}%)</small>
+                {% endif %}
+            </div>
+            <div style="width:20%; text-align:right;">{{ item.display_price|floatformat:2 }}</div>
+            <div style="width:20%; text-align:right;">{{ item.line_total|floatformat:2 }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <hr>
+
+    <!-- Totals -->
+    <div style="text-align:right; font-size:13px;">
+        <p style="margin:1px 0;"><strong>Subtotal:</strong> {{ currency }} {{ sub_total|floatformat:2 }}</p>
+
+        {% if inclusive_tax_total > 0 %}
+            <p style="margin:1px 0;"><strong>Inclusive Tax:</strong> {{ currency }} {{ inclusive_tax_total|floatformat:2 }}</p>
+        {% endif %}
+
+        {% if exclusive_tax_total > 0 %}
+            <p style="margin:1px 0;"><strong>Exclusive Tax:</strong> {{ currency }} {{ exclusive_tax_total|floatformat:2 }}</p>
+        {% endif %}
+
+        <p style="margin:1px 0;"><strong>Grand Total:</strong> {{ currency }} {{ grand_total|floatformat:2 }}</p>
+        <p style="margin:1px 0;"><strong>Tendered:</strong> {{ currency }} {{ transaction.tendered_amount|floatformat:2 }}</p>
+        <p style="margin:1px 0;"><strong>Change:</strong> {{ currency }} {{ transaction.amount_change|floatformat:2 }}</p>
+    </div>
+
+    <!-- Barcode -->
+    {% if barcode_image %}
+    <div class="text-center my-1">
+        <img src="data:image/png;base64,{{ barcode_image }}" alt="Transaction Barcode" style="width:110px; height:auto;">
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-center" style="font-size:12px; margin-top:5px;">
+        <small><b>{{ fmt.footer_text }}</b></small>
+        {% if fmt.show_timestamp %}
+            <br><small>{{ now|date:"d M Y H:i" }}</small>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Buttons: Reprint and Cancel on one line -->
+<div class="modal-footer d-flex justify-content-between align-items-center mt-3">
+    <button type="button" id="reprint-btn" class="btn btn-success btn-sm" onclick="reprintReceipt()">🖨 Reprint</button>
+    <button type="button" id="cancel-btn" class="btn btn-secondary btn-sm" onclick="closeReceipt()">Cancel</button>
+</div>
+
+<script>
+function reprintReceipt() {
+    var btn = document.getElementById('reprint-btn');
+    btn.disabled = true;
+    btn.textContent = 'Printing...';
+
+    fetch("{% url 'reprint-receipt' transaction.id %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        alert(d.status === "success" ? "Receipt sent to the printer." : (d.msg || "Printing failed."));
+    })
+    .catch(function () { alert("Could not reach the server."); })
+    .finally(function () {
+        btn.disabled = false;
+        btn.textContent = '🖨 Reprint';
+    });
+}
+
+// Cancel just closes the receipt (it does not touch the sale)
+function closeReceipt() {
+    var box = document.getElementById('receipt-container');
+    var modal = box ? box.closest('.modal') : null;
+    if (modal && window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modal).hide();
+    } else if (modal) {
+        modal.style.display = 'none';
+        document.querySelectorAll('.modal-backdrop').forEach(function (b) { b.remove(); });
+    } else {
+        window.history.back();
+    }
+}
+
+// Hide the popup's own footer buttons (Save / Cancel) so only Reprint and Cancel above remain
+(function () {
+    var box = document.getElementById('receipt-container');
+    var mine = document.getElementById('reprint-btn');
+    var modal = box ? box.closest('.modal') : null;
+    if (!modal) return;
+    modal.querySelectorAll('.modal-footer').forEach(function (footer) {
+        if (!footer.contains(mine)) footer.style.display = 'none';
+    });
+})();
+</script>

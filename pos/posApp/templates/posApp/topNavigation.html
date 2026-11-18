@@ -1,0 +1,81 @@
+{% load static %}
+<!-- partial:partials/_navbar.html -->
+<header class="mdc-top-app-bar border-bottom shadow">
+    <div class="mdc-top-app-bar__row">
+        <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+            <button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button sidebar-toggler">menu</button>
+        </div>
+        <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end mdc-top-app-bar__section-right" >
+            {% if user.is_authenticated %}
+            <div class="dropdown me-3">
+                <a href="#" class="position-relative text-dark" id="poAlertBell" data-bs-toggle="dropdown" aria-expanded="false" title="Purchase order alerts">
+                    <i class="material-icons" style="font-size:26px; vertical-align:middle;">notifications</i>
+                    {% if po_alert_count %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ po_alert_count }}</span>
+                    {% endif %}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="poAlertBell" style="min-width:300px;">
+                    {% for a in po_alerts %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'credit-list' %}">
+                            <strong>PO-{{ a.order_id }}</strong> &middot; {{ a.supplier }}<br>
+                            <small>${{ a.remaining }} unpaid &middot;
+                            {% if a.days_left == 0 %}due today{% else %}{{ a.days_left }} day{{ a.days_left|pluralize }} left{% endif %}
+                            (due {{ a.due_date|date:"d M Y" }})</small>
+                        </a>
+                    </li>
+                    {% empty %}
+                    <li><span class="dropdown-item-text text-muted">No unpaid purchase orders are due soon.</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            <div class="menu-button-container menu-profile d-none d-md-block">
+                <button class="mdc-button mdc-menu-button">
+                    <span class="d-flex align-items-center">
+                    <span class="figure">
+					<span class="figure">
+				{% if country_code %}
+        <img src="https://flagcdn.com/w40/{{ country_code }}.png"
+             alt="{{ country_code }}"
+             class="user"
+             style="width: 20px; height: 14px; border-radius: 2px; margin-right: 5px;">
+			{% endif %}
+				</span>
+                      <!--  <img src="{% static 'posApp/assets/material-admin/images/ICOM.jpg' %}" alt="user" class="user"> -->
+                    </span>
+                    <li class="nav-item d-flex align-items-center me-2">
+                 <span class="user-name">{{ user.first_name }}</span>
+                    </span>
+                </button>
+                <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                    <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                        <li class="mdc-list-item" role="menuitem">
+                            <a class="text-dark" href="{% url 'redirect-admin' %}">
+                                <div class="item-thumbnail item-thumbnail-icon-only">
+                                    <i class="mdi mdi-settings-outline text-dark"></i>
+                                </div>
+                                <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                                    <h6 class="item-subject font-weight-normal">
+                                        Admin
+                                    </h6>
+                                </div>
+                            </a>
+                        </li>
+                        <li class="mdc-list-item" role="menuitem">
+                            <a class="text-dark" href="{% url 'login-user' %}">
+                                <div class="item-thumbnail item-thumbnail-icon-only">
+                                    <i class="mdi mdi-logout text-dark"></i>
+                                </div>
+                                <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                                    <h6 class="item-subject font-weight-normal">Logout</h6>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- partial -->

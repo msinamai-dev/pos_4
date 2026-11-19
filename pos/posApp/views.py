@@ -419,7 +419,7 @@ def create_user_page(request):
 @permission_required('create_user')
 @subscription_required
 def create_user(request):
-    """POST (AJAX): create the user. Always answers with JSON."""
+   
     if request.method != "POST":
         return JsonResponse({'status': 'error', 'message': 'Invalid request'})
 
@@ -2958,7 +2958,7 @@ from django.db.models import IntegerField
 
 
 def _in_range(qs, field, start, end):
-    """Limit a queryset to a date range on a datetime field."""
+   
     if start:
         qs = qs.filter(**{f"{field}__date__gte": start})
     if end:
@@ -2979,13 +2979,12 @@ def stock_update_history(request):
     if not shop or not branch:
         return JsonResponse({"status": "failed", "msg": "❌ No shop/branch found for this user"})
 
-    # ---------- filters from the form ----------
+ 
     start = _safe_date(request.GET.get('start_date'))
     end = _safe_date(request.GET.get('end_date'))
     product_id = request.GET.get('product')
     user_id = request.GET.get('user')
 
-    # ---------- restocks (with sold / adjusted since that restock) ----------
     next_update_time = (
         StockHistory.objects
         .filter(
@@ -3188,7 +3187,6 @@ def stock_update_history(request):
 @login_required
 @permission_required('view_stock_history')
 def product_history(request, product_id):
-    """Everything that ever happened to one product, newest first, with a running balance."""
     shop, branch = get_user_shop_and_branch(request)
     if not shop:
         return JsonResponse({"status": "failed", "msg": "❌ No shop found for this user"})
@@ -3433,7 +3431,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @subscription_required
 def add_supplier(request):
-    # Get branch
+    
     if request.user.is_superuser:
         branch_id = request.GET.get("branch_id") or request.POST.get("branch_id")
         branch = Branch.objects.filter(id=branch_id).first() if branch_id else None
@@ -3501,10 +3499,7 @@ def add_supplier(request):
         "selected_branch": branch if not request.user.is_superuser else None
     })
 
-
-
 @login_required
-
 @subscription_required
 def delete_supplier(request, supplier_id):
   
@@ -3685,8 +3680,6 @@ from .models import ExchangeRate
 
 from posApp.models import ExchangeRate
 
-
-
 @csrf_exempt
 def pos_api(request):
     shop, branch = get_user_shop_and_branch(request)
@@ -3835,7 +3828,7 @@ def add_order(request):
 
 @login_required
 def stocktracker(request):
-    # Get user's shop and branch from UserProfile
+ 
     try:
         profile = request.user.userprofile
         shop = profile.shop
@@ -4165,7 +4158,6 @@ from django.http import JsonResponse
 
 
 def _get_selected_branch(request, shop, user_branch):
-    """Normal users stay on their own branch; superusers may pick one via ?branch=."""
     if request.user.is_superuser:
         branch_id = request.GET.get("branch")
         if branch_id and shop:
@@ -4475,7 +4467,6 @@ from .models import PrintJob
 
 
 def _safe_date(value):
-    """parse_date, but bad input gives None instead of an error."""
     try:
         return parse_date(value) if value else None
     except ValueError:
@@ -4483,7 +4474,7 @@ def _safe_date(value):
 
 
 def _margins(sales, cost):
-    """Returns (profit, profit_margin, loss_margin, signed_margin)."""
+
     profit = sales - cost
     signed = (profit / sales * 100) if sales > 0 else Decimal("0")
     if profit >= 0:
@@ -4895,11 +4886,11 @@ def export_product_report_excel(request):
     ]
     ws.append(headers)
 
-    # Fetch all sales items with related product & category
+   
     sales_items = SalesItem.objects.select_related('product', 'product__category').all()
 
     for item in sales_items:
-        # Use correct date field; fallback to today if missing
+   
         date_sold = getattr(item, 'date_added', timezone.now()).strftime("%Y-%m-%d")
 
         category = item.product.category.name if item.product.category else "N/A"
@@ -4925,7 +4916,7 @@ def export_product_report_excel(request):
             round(loss_margin, 2)
         ])
 
-    # Return response as Excel file
+   
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
@@ -4946,19 +4937,19 @@ def checkout_modal(request):
 
     shop, branch = get_user_shop_and_branch(request)
 
-    # Rate of the chosen currency (units per 1 USD). USD is always 1.
+    
     rate = Decimal("1")
     if currency != "USD":
         ex = ExchangeRate.objects.filter(shop=shop, branch=branch, currency=currency,is_active =True).first()
         if ex and ex.rate:
             rate = Decimal(str(ex.rate))
         else:
-            currency = "USD"   # unknown currency: fall back to the base currency
+            currency = "USD"   
 
     payable = (grand_total_usd * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     context = {
-        "grand_total": payable,            # amount to collect, in the chosen currency
+        "grand_total": payable,            
         "grand_total_usd": grand_total_usd,
         "currency": currency,
         "rate": rate,
@@ -4974,8 +4965,6 @@ def pos(request):
 
     products = Products.objects.filter(shop=shop, branch=branch, status=True)
 
-    # USD is the base currency: always in the list, always first, always the default.
-    # Other currencies come from the ACTIVE exchange rates the shop has added.
     other_currencies = list(
         ExchangeRate.objects.filter(shop=shop, branch=branch, is_active=True)
         .exclude(currency__iexact="USD")
@@ -4985,7 +4974,6 @@ def pos(request):
     )
     currencies = ["USD"] + other_currencies
 
-    # currency -> units per 1 USD, used by the page to show prices in the chosen currency
     pos_rates = {"USD": 1.0}
     for r in ExchangeRate.objects.filter(
         shop=shop, branch=branch, is_active=True
@@ -5028,12 +5016,7 @@ def pos(request):
 
     
 def generate_receipt_number(shop, branch):
-    """
-    Atomically increments a per-(shop, branch) counter and returns
-    a receipt number unique across shop+branch combinations.
-    Uses the first two letters of the shop name and branch name.
-    e.g. Shop "Sunrise Mart", Branch "Downtown" -> SU-DO-000042
-    """
+  
     with db_transaction.atomic():
         seq, _ = ReceiptSequence.objects.select_for_update().get_or_create(
             shop=shop, branch=branch
@@ -5063,12 +5046,10 @@ def save_pos(request):
         except (InvalidOperation, TypeError, ValueError):
             return Decimal(default)
 
-    # Ensure active shift
     shift = Shift.objects.filter(shop=shop, branch=branch, user=request.user, is_closed=False).last()
     if not shift:
         return JsonResponse({"status": "failed", "msg": "No active shift. Please open a shift first."})
 
-    # ---- Items (read first, the total is calculated from them) ----
     products = data.getlist("product_id[]")
     qtys = data.getlist("qty[]")
     prices = data.getlist("price[]")
@@ -5080,7 +5061,6 @@ def save_pos(request):
     if not (len(products) == len(qtys) == len(prices)):
         return JsonResponse({"status": "failed", "msg": "Invalid item data."})
 
-    # ---- Grand total (USD) = sum of line totals. Taxes are inside the price. ----
     try:
         grand_total_usd = Decimal("0.00")
         for i in range(len(products)):
@@ -5090,7 +5070,6 @@ def save_pos(request):
     except (InvalidOperation, ValueError, TypeError):
         return JsonResponse({"status": "failed", "msg": "Invalid item data."})
 
-    # ---- Payment details ----
     payment_currency = (data.get("payment_currency") or data.get("currency") or "USD").upper().strip()
     payment_method = data.get("payment_method") or data.get("payment_type") or ""
 
@@ -5105,28 +5084,21 @@ def save_pos(request):
                 "msg": f"Exchange rate for {payment_currency} not found."
             })
         rate = Decimal(str(ex.rate))
-    # USD needs no lookup, rate stays 1
 
     if rate == 0:
         return JsonResponse({"status": "failed", "msg": "Invalid exchange rate (0)."})
 
-    # ---- Tendered amount ----
     tendered_amount_in_currency = to_dec(data.get("tendered_amount")).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
-    # What the customer must pay, in the currency they pay with (the number the checkout window
-    # showed), so the comparison is done in that currency and not in USD.
     grand_total_in_currency = (grand_total_usd * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     if tendered_amount_in_currency < grand_total_in_currency:
         return JsonResponse({"status": "failed", "msg": "Insufficient funds."})
 
-    # ---- Change (in the payment currency) ----
     change_in_currency = (tendered_amount_in_currency - grand_total_in_currency).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
-
-    # ---- Tax amounts sent by the POS page (display/storage only) ----
     inclusive_tax_total = to_dec(data.get("inclusive_tax_amount"))
     exclusive_tax_total = to_dec(data.get("exclusive_tax_amount"))
 
@@ -5143,11 +5115,11 @@ def save_pos(request):
                 customer_name=data.get("customer_name"),
                 sub_total=(grand_total_usd - exclusive_tax_total).quantize(
                     Decimal("0.01"), rounding=ROUND_HALF_UP
-                ),                                              # price total minus exclusive tax
+                ),                                              
                 inclusive_tax_amount=inclusive_tax_total,
                 exclusive_tax_amount=exclusive_tax_total,
-                grand_total=grand_total_in_currency,            # in payment currency
-                grand_total_base=grand_total_usd,               # always USD
+                grand_total=grand_total_in_currency,            
+                grand_total_base=grand_total_usd,               
                 tendered_amount=tendered_amount_in_currency,
                 amount_change=change_in_currency,
                 exchange_rate=rate,
@@ -5159,8 +5131,6 @@ def save_pos(request):
 
             item_count = max(1, len(products))
             has_type_field = "type" in [f.name for f in SalesItem._meta.get_fields()]
-
-            # Process each item
             for i in range(len(products)):
                 prod = Products.objects.select_for_update().get(pk=products[i], shop=shop)
                 qty = int(qtys[i])
@@ -5258,11 +5228,10 @@ def print_job_retry(request):
     
 
 def generate_barcode(transaction_code):
-    #Use Code128 barcode format
+
     CODE128 = barcode.get_barcode_class('code128')
     buffer = BytesIO()
     CODE128(transaction_code, writer=ImageWriter()).write(buffer)
-    #Convert to base64 so it can be embedded in HTML
     barcode_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
     return barcode_base64
 
@@ -5301,14 +5270,12 @@ def exchange_rate_list(request):
     shop, branch = get_user_shop_and_branch(request)
     rate_list = ExchangeRate.objects.filter(shop=shop, branch=branch).order_by("currency")
 
-    # Optional filter
     currency_filter = request.GET.get("currency")
     if currency_filter:
         rate_list = rate_list.filter(currency__icontains=currency_filter.upper())
 
-    # Pagination
     from django.core.paginator import Paginator
-    paginator = Paginator(rate_list, 10)  # 10 rows per page
+    paginator = Paginator(rate_list, 10)  
     page_number = request.GET.get("page")
     rates = paginator.get_page(page_number)
 
@@ -5332,7 +5299,7 @@ def update_exchange_rate(request):
         if new_rate <= 0:
             return JsonResponse({"status": "failed", "msg": "Rate must be greater than 0."})
         try:
-            # Scoped lookup — prevents updating another shop/branch's rate via a guessed id
+          
             rate_obj = ExchangeRate.objects.get(id=rate_id, shop=shop, branch=branch)
             old_rate = rate_obj.rate
             rate_obj.rate = new_rate
@@ -5484,14 +5451,14 @@ def cancel_transaction(request):
         if not transaction:
             return JsonResponse({"status": "failed", "msg": "Transaction not found!"})
 
-        # Rollback stock
+
         sales_items = SalesItem.objects.filter(transaction=transaction)
         for item in sales_items:
             product = item.product
             product.stock += item.qty
             product.save()
 
-        transaction.delete()  # Delete the transaction
+        transaction.delete()  
         return JsonResponse({"status": "success", "msg": "Transaction cancelled and stock rolled back!"})
     
     return JsonResponse({"status": "failed", "msg": "Invalid request"})
@@ -5506,7 +5473,7 @@ from django.utils import timezone
 
 
 def _dec(value):
-    """Safe Decimal conversion (None, float, int or str all work)."""
+   
     return Decimal(str(value or 0))
 
 
@@ -5629,8 +5596,6 @@ def receipt(request, transaction_id=None):
 
 @login_required
 def receipt_view(request, transaction_id):
-    """Reprint from the sales list: identical to the receipt modal, so currency,
-    converted prices, totals, tendered and change all come out the same."""
     shop, _ = get_user_shop_and_branch(request)
     if not Transaction.objects.filter(id=transaction_id, shop=shop).exists():
         messages.error(request, "Transaction not found!")
@@ -5643,7 +5608,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-# characters per line for each paper size
+
 PAPER_COLUMNS = {"58": 32, "80": 42, "A4": 80}
 
 ESC_INIT = b"\x1b@"
@@ -5787,11 +5752,11 @@ def _printer_name(printer_settings):
     return None
 
 
-SERIAL_BAUD = 9600          # Bluetooth serial ports ignore this, but it must be set
+SERIAL_BAUD = 9600          
 
 
 def list_printers():
-    """Windows printers plus serial/Bluetooth COM ports, for the Printer Settings dropdown."""
+    
     names = []
     try:
         import win32print
@@ -5808,9 +5773,8 @@ def list_printers():
 
 
 def _send_serial(port, data):
-    """Bluetooth (SPP) printers show up in Windows as a COM port such as COM5."""
     import time
-    import serial                                    # pip install pyserial
+    import serial                                   
 
     try:
         conn = serial.Serial(port, SERIAL_BAUD, timeout=5, write_timeout=10)
@@ -5832,7 +5796,7 @@ def send_raw_to_printer(printer_name, data):
     if printer_name and str(printer_name).upper().startswith("COM"):
         return _send_serial(str(printer_name).upper(), data)
 
-    import win32print          # pip install pywin32
+    import win32print          
 
     name = printer_name or win32print.GetDefaultPrinter()
     try:
@@ -5855,14 +5819,13 @@ def send_raw_to_printer(printer_name, data):
 
 
 def print_transaction_receipt(transaction, user):
-    """Print one saved sale. Returns False when auto print is switched off."""
     from .models import SalesItem, PrinterSettings, ReceiptSettings
 
     printer_settings = PrinterSettings.objects.filter(shop=transaction.shop).first()
     if printer_settings is not None:
         if not getattr(printer_settings, "auto_print", True):
             return False
-        # Bluetooth-LE printers are driven by the browser, not by the server
+       
         if str(getattr(printer_settings, "connection_type", "system")).lower() == "ble":
             return False
 
@@ -5970,8 +5933,6 @@ def printer_settings(request):
     })
 
 
-
-
 @login_required
 def delete_sale(request):
     resp = {'status': 'failed', 'msg': ''}
@@ -6076,9 +6037,8 @@ def change_password_first_login(request):
 def stock_page(request):
     shop, user_branch = get_user_shop_and_branch(request)
     if not shop:
-        return redirect("dashboard")  # fallback if no shop
+        return redirect("dashboard")  
 
-    # Filter products by shop and branch
     products = Products.objects.filter(shop=shop, branch=user_branch).order_by("name")
 
     return render(request, "posApp/stock.html", {
@@ -6119,11 +6079,11 @@ def update_department_users(request, dept_id):
     dept = Department.objects.get(id=dept_id)
     if request.method == "POST":
         selected_users = request.POST.getlist('users')
-        # Clear existing assignments
+        
         for profile in UserProfile.objects.filter(department=dept):
             profile.department = None
             profile.save()
-        # Assign selected users
+        
         for user_id in selected_users:
             user = User.objects.get(id=user_id)
             profile, created = UserProfile.objects.get_or_create(user=user)
@@ -6161,16 +6121,13 @@ def department_required(page_name=None, required_right=None):
         def _wrapped_view(request, *args, **kwargs):
             user = request.user
 
-            # Check if user is authenticated
+           
             if not user.is_authenticated:
                 raise PermissionDenied("User must be logged in.")
-
-            # Check department access
             if page_name:
                 if not hasattr(user, 'department') or not user.department.has_access_to(page_name):
                     raise PermissionDenied(f"Access to {page_name} denied for department.")
 
-            # Check specific access right
             if required_right:
                 if not user.has_perm(required_right):
                     raise PermissionDenied(f"Missing required permission: {required_right}")
@@ -6179,13 +6136,9 @@ def department_required(page_name=None, required_right=None):
         return _wrapped_view
     return decorator
 
-
-
-
 @login_required
 @require_POST
 def log_expense(request):
-    # NOTE: @csrf_exempt is removed on purpose. The page already sends X-CSRFToken.
     try:
         shop, branch = get_user_shop_and_branch(request)
         if not shop or not branch:
@@ -6222,7 +6175,6 @@ def log_expense(request):
         return JsonResponse({"status": "error", "message": str(e)})
 
 def sync_shift_currencies(shift):
-    """Give an open shift a zero-opening line for every currency the shop has now."""
     existing = set(shift.currency_lines.values_list("currency", flat=True))
     missing = [c for c in shop_currencies(shift.shop, shift.branch) if c not in existing]
     if missing:
@@ -6249,7 +6201,6 @@ def open_shift(request):
         data = json.loads(request.body)
         amounts = data.get("amounts") or {}
 
-        # Every ACTIVE currency must be entered (0 is allowed).
         required = shop_currencies(shop, branch)
         missing = [c for c in required if str(amounts.get(c, "")).strip() == ""]
         if missing:
@@ -6270,10 +6221,9 @@ def open_shift(request):
                 user=request.user,
                 shop=shop,
                 branch=branch,
-                money_left=parsed.get("USD", Decimal("0")),   # keeps the old field meaningful
+                money_left=parsed.get("USD", Decimal("0")),   
             )
 
-            # Own savepoint: if the snapshot fails it cannot break the shift itself.
             try:
                 with db_transaction.atomic():
                     take_stock_snapshot(shift, "opening")
@@ -6316,15 +6266,11 @@ def close_shift(request):
                 return JsonResponse({"status": "error", "message": "No open shift found."})
 
             now = timezone.now()
-
-            # Sales per currency = sum of grand_total of every transaction on THIS shift.
             sales_by_cur = {
                 row["currency"]: row["total"] or Decimal("0.00")
                 for row in Transaction.objects.filter(shift=shift)
                 .values("currency").annotate(total=Sum("grand_total"))
             }
-
-            # Expenses by currency while the shift was open.
             expenses_by_cur = {
                 row["currency"]: row["total"] or Decimal("0.00")
                 for row in Expense.objects.filter(
@@ -6334,13 +6280,9 @@ def close_shift(request):
             }
 
             lines = {l.currency: l for l in shift.currency_lines.all()}
-
-            # A currency used mid-shift that had no opening line gets one with opening = 0.
             for cur in set(sales_by_cur) | set(expenses_by_cur):
                 if cur not in lines:
                     lines[cur] = ShiftCurrency(shift=shift, currency=cur, opening_amount=Decimal("0.00"))
-
-            # Only currencies that still matter must be counted (0 is allowed).
             required = set(shift_close_currencies(shift))
             missing = [c for c in required if str(counted.get(c, "")).strip() == ""]
             if missing:
@@ -6356,7 +6298,6 @@ def close_shift(request):
                     except ValueError as e:
                         return JsonResponse({"status": "error", "message": f"{cur}: {e}"})
                 else:
-                    # deactivated and never used on this shift: nothing to count
                     line.closing_amount = Decimal("0.00")
 
                 line.sales_total = sales_by_cur.get(cur, Decimal("0.00"))
@@ -6365,7 +6306,6 @@ def close_shift(request):
                 line.difference = line.closing_amount - line.expected_amount
                 line.save()
 
-            # Legacy fields: keep them filled, in USD, so older screens still work.
             shift.actual_money = lines["USD"].closing_amount if "USD" in lines else Decimal("0.00")
             shift.total_sales = Transaction.objects.filter(shift=shift).aggregate(t=Sum("grand_total_base"))["t"] or 0
             shift.total_expenses = expenses_by_cur.get("USD", Decimal("0.00"))
@@ -6385,7 +6325,6 @@ def close_shift(request):
 
 
 def _legacy_line(shift):
-    """Shifts closed before this change have no currency rows. Show them as one USD line."""
     opening = shift.money_left or Decimal("0.00")
     sales = shift.total_sales or Decimal("0.00")
     expenses = shift.total_expenses or Decimal("0.00")
@@ -6396,7 +6335,7 @@ def _legacy_line(shift):
         expected_amount=expected, closing_amount=closing, difference=closing - expected,
     )
 
-from collections import OrderedDict   # already imported if your file uses it
+from collections import OrderedDict  
 
 def _parse_date(value, default):
     try:
@@ -6472,8 +6411,6 @@ def add_income_entry(request):
 
     currency = (request.POST.get("currency") or "USD").upper().strip()
     entry_date = _parse_date(request.POST.get("date"), timezone.localdate())
-
-    # the rate that applied on the entry's date, saved with the entry
     rate = rate_at(shop, branch, currency, end_of_day(entry_date))
     if rate is None:
         return JsonResponse({"status": "failed", "msg": f"No exchange rate found for {currency}."})
@@ -6532,8 +6469,6 @@ def shift_report(request):
     if username_filter:
         shifts = shifts.filter(user__username__icontains=username_filter)
 
-    # Currencies that are active right now. A deactivated currency with all-zero
-    # figures on a shift is hidden from the report.
     rate_filter = {"shop": shop, "is_active": True}
     if branch:
         rate_filter["branch"] = branch
@@ -6542,7 +6477,6 @@ def shift_report(request):
     }
     active_currencies.add("USD")
 
-    # Group by the day the shift was OPENED (a shift closed after midnight stays with its opening day).
     days = OrderedDict()
     for shift in shifts:
         day = timezone.localtime(shift.opened_at).date()
@@ -6712,7 +6646,6 @@ def edit_branch(request, branch_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=405)
 
 
-# Records that only exist because the branch exists. They are removed together with it.
 _BRANCH_CASCADE_OK = {"receiptsettings", "receiptsequence", "exchangerate"}
 
 
@@ -6791,11 +6724,8 @@ def export_excel(request, page):
         df = pd.DataFrame(data)
         df.rename(columns=columns, inplace=True)
 
-        # Map unit codes to readable labels
         unit_map = dict(Products.UNIT_CHOICES)
         df['Sold By'] = df['Sold By'].map(unit_map)
-
-        # Map status boolean to readable text
         df['Status'] = df['Status'].map({True: 'Active', False: 'Inactive'})
         
         filename = 'products.xlsx'
@@ -6948,7 +6878,7 @@ def subscribe(request, plan_id):
         subscription.next_billing_date = subscription.end_date
         subscription.is_active = True
         subscription.save()
-        messages.success(request, f"🎉 Your subscription has been updated to {plan.name}!")
+        messages.success(request, f" Your subscription has been updated to {plan.name}!")
     else:
         Subscription.objects.create(
             user=user,
@@ -6958,13 +6888,13 @@ def subscribe(request, plan_id):
             next_billing_date=today + timedelta(days=plan.duration_days),
             is_active=True
         )
-        messages.success(request, f"🎉 You have subscribed to {plan.name} successfully!")
+        messages.success(request, f" You have subscribed to {plan.name} successfully!")
 
     return redirect("my-subscription")
 
 @login_required
 def my_subscription(request):
-    """View the current subscription for logged-in user"""
+   
     subscription = Subscription.objects.filter(user=request.user).order_by("-end_date").first()
     return render(request, "posApp/my_subscription.html", {"subscription": subscription})
 
@@ -6985,7 +6915,6 @@ def add_billing_method(request):
         )
         messages.success(request, "✅ Billing method added successfully!")
 
-        # redirect back to the plan the user wanted
         next_url = request.GET.get("next", "subscription-plans")
         return redirect(next_url)
 

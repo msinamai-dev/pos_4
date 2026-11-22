@@ -4221,18 +4221,16 @@ def stock_count_reports(request, report_id=None):
     if not shop:
         return JsonResponse({"status": "failed", "msg": "No shop found for this user."})
 
-    # a specific report is handled by the detail view
     if report_id:
         return redirect("view-stock-count-report", report_id=report_id)
 
     selected_branch = _get_selected_branch(request, shop, branch)
 
-    # which count rows belong to this shop (and branch, if one is selected)
+ 
     count_filter = Q(counts__product__shop=shop)
     if selected_branch:
         count_filter &= Q(counts__product__branch=selected_branch)
 
-    # only reports that contain such rows, with the number of products counted
     valid_ids = StockCountReport.objects.filter(count_filter).values("id")
     reports = (
         StockCountReport.objects
@@ -4246,7 +4244,6 @@ def stock_count_reports(request, report_id=None):
         id__in=reports.values_list("user_id", flat=True)
     ).distinct()
 
-    # filters from the form
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     user_id = request.GET.get("user")
@@ -4281,7 +4278,6 @@ def view_stock_count_report(request, report_id):
     if not shop:
         return JsonResponse({"status": "failed", "msg": "No shop found for this user."})
 
-    # the report must contain products from this shop, otherwise 404
     report = get_object_or_404(
         StockCountReport.objects.select_related("user").filter(
             counts__product__shop=shop
@@ -4310,7 +4306,6 @@ def stock_summary(request):
         branch_id = request.GET.get("branch")
         selected_branch = Branch.objects.filter(id=branch_id, shop=shop).first()
 
-    # Get products filtered by shop and branch
     products = Products.objects.all()
     if shop:
         products = products.filter(shop=shop)
@@ -4322,7 +4317,6 @@ def stock_summary(request):
 
     for product in products:
 
-        # Stock ordered
         stock_ordered = StockHistory.objects.filter(
             product=product, shop=shop, branch=selected_branch
         ).aggregate(total=Sum('quantity_added'))['total'] or 0

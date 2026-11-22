@@ -155,21 +155,21 @@
                 <div id="productsMenu" class="collapse" data-bs-parent="#sidebarAccordion">
                     <nav class="mdc-list mdc-drawer-submenu">
 
-                        {% if "view_products" in user_perms %}
-                        <div class="mdc-list-item mdc-drawer-item">
-                            <a class="mdc-drawer-link" href="{% url 'product-page' %}">
-                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Product
-                            </a>
-                        </div>
-                        {% endif %}
-
-                        {% if "view_categories" in user_perms %}
+                          {% if "view_categories" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
                             <a class="mdc-drawer-link" href="{% url 'category-page' %}">
                                 <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">folder</i> Category
                             </a>
                         </div>
                         {% endif %}
+
+                        {% if "view_products" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'product-page' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Product
+                            </a>
+                        </div>
+                        {% endif %}     
 
                         {% if "manage_stocks" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
@@ -219,6 +219,14 @@
                         </div>
                         {% endif %}
 
+                        {% if "view_branch" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'branch-list' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">store</i> Branches
+                            </a>
+                        </div>
+                        {% endif %}
+
                         {% if "manage_purchase_orders" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
                             <a class="mdc-drawer-link" href="{% url 'purchase_orders' %}">
@@ -237,13 +245,7 @@
 
                        
 
-                        {% if "view_sales_report" in user_perms %}
-                        <div class="mdc-list-item mdc-drawer-item">
-                            <a class="mdc-drawer-link" href="{% url 'monthlysales' %}">
-                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Monthly Sales
-                            </a>
-                        </div>
-                        {% endif %}
+                       
 
                         {% for m in auto_sections.Products %}
                         <div class="mdc-list-item mdc-drawer-item">
@@ -304,6 +306,14 @@
                         </div>
                         {% endif %}
 
+                        {% if "view_income_statement" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'income-statement' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">subscriptions</i> Income Statement
+                            </a>
+                        </div>
+                        {% endif %}
+
                         {% if "view_stock_tracker" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
                             <a class="mdc-drawer-link" href="{% url 'stock-tracker-page' %}">
@@ -333,7 +343,14 @@
                         </div>
                         {% endif %}
 
-                        {# was nested inside the stock_count_report check, so it only showed with that permission #}
+                         {% if "view_sales_report" in user_perms %}
+                        <div class="mdc-list-item mdc-drawer-item">
+                            <a class="mdc-drawer-link" href="{% url 'monthlysales' %}">
+                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">list</i> Monthly Analytics
+                            </a>
+                        </div>
+                        {% endif %}
+
                         {% if "stock_adjustment" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
                             <a class="mdc-drawer-link" href="{% url 'stock_adjustment_report' %}">
@@ -401,13 +418,7 @@
                         </div>
                         {% endif %}
 
-                        {% if "view_branch" in user_perms %}
-                        <div class="mdc-list-item mdc-drawer-item">
-                            <a class="mdc-drawer-link" href="{% url 'branch-list' %}">
-                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">location_city</i> Branch List
-                            </a>
-                        </div>
-                        {% endif %}
+
 
                         {% if "my-subscription" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
@@ -439,13 +450,7 @@
                         {% endif %}
 
 
-                        {% if "view_income_statement" in user_perms %}
-                        <div class="mdc-list-item mdc-drawer-item">
-                            <a class="mdc-drawer-link" href="{% url 'income-statement' %}">
-                                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">subscriptions</i> Income Statement
-                            </a>
-                        </div>
-                        {% endif %}
+
                          {% if "subscription-plans" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
                             <a class="mdc-drawer-link" href="{% url 'receipt-settings' %}">

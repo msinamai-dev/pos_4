@@ -1,0 +1,303 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .an {
+    --an-border: #e5e7eb;
+    --an-muted: #6b7280;
+    --an-text: #111827;
+    --an-soft: #f3f4f6;
+    --an-accent: #1d5f8a;
+    --an-green: #15803d;
+    --an-red: #dc2626;
+    --an-amber: #d97706;
+    color: var(--an-text);
+    font-size: 14px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--an-border);
+    border-radius: 10px;
+    padding: 0 24px 28px;
+    min-width: 0;
+  }
+  .an-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0 10px; }
+  .an-crumb { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--an-border); border-radius: 6px; padding: 4px 10px; font-size: .85rem; background: #fff; }
+  .an-crumb small { color: var(--an-muted); }
+  .an-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--an-border); background: var(--an-soft); border-radius: 8px; }
+  .an-switch a { padding: 5px 14px; border-radius: 6px; font-size: .82rem; color: var(--an-muted); text-decoration: none; }
+  .an-switch a.active { background: #fff; color: var(--an-text); box-shadow: 0 0 0 1px var(--an-border); font-weight: 500; }
+
+  .an-btn { height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--an-accent); background: var(--an-accent); color: #fff; font-size: .8rem; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; cursor: pointer; }
+  .an-btn:hover { color: #fff; opacity: .92; }
+  .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
+
+  .an-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; }
+  .an-filters .fl { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .72rem; color: var(--an-muted); white-space: nowrap; }
+  .an-filters .fl .lbl { font-weight: 600; line-height: 1; }
+  .an-filters .ttl { align-self: center; flex-direction: row; align-items: center; gap: 6px; font-weight: 600; font-size: .8rem; color: var(--an-text); }
+  .an-filters select { box-sizing: border-box !important; height: 34px !important; min-height: 34px !important; width: 170px !important; margin: 0 !important; padding: 0 10px !important; border: 1px solid var(--an-border) !important; border-radius: 6px !important; font-size: .8rem !important; background-color: #fff; }
+  .an-filters .scope { margin-left: auto; align-self: center; font-size: .72rem; color: var(--an-muted); }
+
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 4px 0 6px; }
+  .an .note { color: var(--an-muted); font-size: .78rem; margin: 0 0 14px; }
+
+  .an-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .an-stat { border: 1px solid var(--an-border); border-left-width: 4px; border-radius: 8px; padding: 12px 14px; }
+  .an-stat .l { color: var(--an-muted); font-size: .78rem; }
+  .an-stat .v { font-size: 1.4rem; font-weight: 600; margin-top: 4px; line-height: 1.1; }
+  .an-stat .n { color: var(--an-muted); font-size: .75rem; margin-top: 3px; }
+
+  .an-card { border: 1px solid var(--an-border); border-radius: 10px; padding: 14px 16px; background: #fff; min-width: 0; }
+  .an-card-title { font-weight: 600; font-size: .85rem; margin-bottom: 10px; }
+  .an-card-title small { color: var(--an-muted); font-weight: 400; margin-left: 6px; }
+  .an-chart-box { position: relative; height: 420px; }
+
+  /* quadrants */
+  .quad-wrap { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 22px 0; }
+  .axis-y { grid-row: 1 / span 2; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; color: var(--an-muted); font-size: .76rem; letter-spacing: .04em; }
+  .axis-x { grid-column: 2 / span 2; text-align: center; color: var(--an-muted); font-size: .76rem; letter-spacing: .04em; }
+  .quad { border: 1px solid var(--an-border); border-top-width: 4px; border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .quad h3 { font-size: .95rem; font-weight: 600; margin: 0 0 2px; display: flex; justify-content: space-between; gap: 8px; }
+  .quad h3 span { font-weight: 400; color: var(--an-muted); font-size: .8rem; }
+  .quad .adv { color: var(--an-muted); font-size: .78rem; margin: 0 0 10px; }
+  .quad ul { list-style: none; margin: 0; padding: 0; max-height: 230px; overflow-y: auto; }
+  .quad li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1f2f4; font-size: .84rem; }
+  .quad li:last-child { border-bottom: 0; }
+  .quad li a { color: var(--an-text); text-decoration: none; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .quad li a:hover { color: var(--an-accent); text-decoration: underline; }
+  .quad li .v { color: var(--an-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .quad .empty { color: var(--an-muted); font-size: .82rem; padding: 8px 0; }
+
+  .an-search { height: 34px; width: 240px; padding: 0 10px; border: 1px solid var(--an-border); border-radius: 6px; font-size: .82rem; }
+  .an-table-scroll { overflow: auto; max-height: 520px; border: 1px solid #eef0f5; border-radius: 8px; margin-top: 10px; }
+  .an-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+  .an-table th { position: sticky; top: 0; z-index: 2; background: #f9fafb; color: var(--an-muted); font-weight: 500; font-size: .75rem; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--an-border); }
+  .an-table th.r, .an-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .an-table td { padding: 9px 12px; border-bottom: 1px solid #f1f2f4; font-size: .85rem; }
+  .an-table tbody tr:hover { background: #fafbfd; }
+  .an-table tr:last-child td { border-bottom: 0; }
+  .an-table a { color: var(--an-text); font-weight: 600; text-decoration: none; }
+  .an-table a:hover { color: var(--an-accent); text-decoration: underline; }
+  .pos { color: var(--an-green); }
+  .neg { color: var(--an-red); }
+  .mut { color: var(--an-muted); }
+  .flag { font-size: .72rem; color: var(--an-amber); font-weight: 600; }
+
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: .74rem; font-weight: 500; }
+  .pill.Star { background: #dcfce7; color: #166534; }
+  .pill.Cash { background: #dbeafe; color: #1e40af; }
+  .pill.Ques { background: #fef3c7; color: #92400e; }
+  .pill.Dog { background: #fee2e2; color: #991b1b; }
+
+  @media (max-width: 900px) { .an-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 700px) {
+    .an { padding: 0 14px 22px; }
+    .quad-wrap { grid-template-columns: minmax(0, 1fr); }
+    .axis-y, .axis-x { display: none; }
+  }
+</style>
+
+<div class="an mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+
+  <div class="an-head">
+    <span class="an-crumb">
+      <i class="bi bi-grid-3x3-gap"></i> Strategy
+      <small>{{ shop_name }} &middot; {{ branch_name }}</small>
+    </span>
+    <div class="an-switch">
+      <a href="{% url 'bcg_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}" class="active">BCG matrix</a>
+      <a href="{% url 'ansoff_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}">Ansoff matrix</a>
+    </div>
+  </div>
+
+  <form method="get" class="an-filters">
+    <span class="fl ttl"><i class="bi bi-funnel"></i> Filters</span>
+    {% if all_branches %}
+    <label class="fl"><span class="lbl">Branch</span>
+      <select name="branch_id">
+        <option value="">All branches</option>
+        {% for b in all_branches %}
+        <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <label class="fl"><span class="lbl">Period</span>
+      <select name="days">
+        {% for p in periods %}
+        <option value="{{ p }}" {% if p == days %}selected{% endif %}>Last {{ p }} days</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="an-btn">Apply</button>
+    <a href="{% url 'bcg_matrix' %}" class="an-btn ghost">Reset</a>
+    <span class="scope">{{ cur_start|date:"d M Y" }} to {{ today|date:"d M Y" }} compared with {{ prev_start|date:"d M Y" }} to {{ prev_end|date:"d M Y" }}</span>
+  </form>
+
+  <h2 class="title">Boston (BCG) matrix</h2>
+  <p class="note">
+    <b>Share</b> compares each product with the best seller in its own category (high = at least {{ share_line }} of the leader).
+    <b>Growth</b> compares its sales with the previous period of the same length, against how your whole business grew
+    ({{ market_growth|floatformat:1 }}%). Sales are counted in USD and include only items sold (returns and breakage are left out). A product that sold now but not before counts as new and high growth.
+  </p>
+
+  <div class="an-stats">
+    {% for g in groups %}
+    <div class="an-stat" style="border-left-color:{{ g.color }}">
+      <div class="l">{{ g.name }}{{ g.count|pluralize:",s" }}</div>
+      <div class="v">{{ g.count }}</div>
+      <div class="n">${{ g.revenue|floatformat:2|intcomma }} sales</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="an-card">
+    <div class="an-card-title">Share vs growth <small>bubble size = sales</small></div>
+    <div class="an-chart-box"><canvas id="bcgChart"></canvas></div>
+  </div>
+
+  <!-- quadrants: same layout as the chart (share to the right, growth up) -->
+  <div class="quad-wrap">
+    <div class="axis-y">GROWTH &rarr;</div>
+
+    {# top row: high growth #}
+    {% for g in groups %}{% if g.name == "Question mark" %}
+    <div class="quad" style="border-top-color:{{ g.color }}">
+      <h3>Question marks <span>{{ g.count }} &middot; ${{ g.revenue|floatformat:2|intcomma }}</span></h3>
+      <p class="adv">Low share, high growth. {{ g.advice }}</p>
+      {% if g.rows %}<ul>{% for r in g.rows %}<li><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a><span class="v">${{ r.revenue|floatformat:2|intcomma }}</span></li>{% endfor %}</ul>{% else %}<div class="empty">No products here.</div>{% endif %}
+    </div>
+    {% endif %}{% endfor %}
+    {% for g in groups %}{% if g.name == "Star" %}
+    <div class="quad" style="border-top-color:{{ g.color }}">
+      <h3>Stars <span>{{ g.count }} &middot; ${{ g.revenue|floatformat:2|intcomma }}</span></h3>
+      <p class="adv">High share, high growth. {{ g.advice }}</p>
+      {% if g.rows %}<ul>{% for r in g.rows %}<li><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a><span class="v">${{ r.revenue|floatformat:2|intcomma }}</span></li>{% endfor %}</ul>{% else %}<div class="empty">No products here.</div>{% endif %}
+    </div>
+    {% endif %}{% endfor %}
+
+    {# bottom row: low growth #}
+    {% for g in groups %}{% if g.name == "Dog" %}
+    <div class="quad" style="border-top-color:{{ g.color }}">
+      <h3>Dogs <span>{{ g.count }} &middot; ${{ g.revenue|floatformat:2|intcomma }}</span></h3>
+      <p class="adv">Low share, low growth. {{ g.advice }}</p>
+      {% if g.rows %}<ul>{% for r in g.rows %}<li><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a><span class="v">${{ r.revenue|floatformat:2|intcomma }}</span></li>{% endfor %}</ul>{% else %}<div class="empty">No products here.</div>{% endif %}
+    </div>
+    {% endif %}{% endfor %}
+    {% for g in groups %}{% if g.name == "Cash cow" %}
+    <div class="quad" style="border-top-color:{{ g.color }}">
+      <h3>Cash cows <span>{{ g.count }} &middot; ${{ g.revenue|floatformat:2|intcomma }}</span></h3>
+      <p class="adv">High share, low growth. {{ g.advice }}</p>
+      {% if g.rows %}<ul>{% for r in g.rows %}<li><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a><span class="v">${{ r.revenue|floatformat:2|intcomma }}</span></li>{% endfor %}</ul>{% else %}<div class="empty">No products here.</div>{% endif %}
+    </div>
+    {% endif %}{% endfor %}
+
+    <div class="axis-x">RELATIVE SHARE IN CATEGORY &rarr;</div>
+  </div>
+
+  <h2 class="title">All products</h2>
+  <input type="text" id="searchBox" class="an-search" placeholder="Search product or category">
+  <div class="an-table-scroll">
+    <table class="an-table table-no-tools" id="bcgTable">
+      <thead>
+        <tr>
+          <th>Product</th><th>Category</th><th>Class</th>
+          <th class="r">Sales (USD)</th><th class="r">Previous</th><th class="r">Growth</th>
+          <th class="r">Rel. share</th><th class="r">Qty</th><th class="r">Margin</th>
+          <th class="r">Stock</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-row>
+          <td><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a></td>
+          <td>{{ r.category }}</td>
+          <td><span class="pill {{ r.cls|cut:' '|slice:':4' }}">{{ r.cls }}</span></td>
+          <td class="r">{{ r.revenue|floatformat:2|intcomma }}</td>
+          <td class="r mut">{{ r.prev_revenue|floatformat:2|intcomma }}</td>
+          <td class="r {% if r.growth is None %}pos{% elif r.growth > 0 %}pos{% elif r.growth < 0 %}neg{% else %}mut{% endif %}">{% if r.growth is None %}New{% else %}{{ r.growth|floatformat:1 }}%{% endif %}</td>
+          <td class="r">{{ r.rel_share|floatformat:2 }}</td>
+          <td class="r">{{ r.qty }}</td>
+          <td class="r {% if r.margin < 0 %}neg{% endif %}">{{ r.margin|floatformat:1 }}%</td>
+          <td class="r {% if r.stock < low_stock %}neg{% endif %}">{{ r.stock }}</td>
+          <td class="flag">{{ r.flag }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="11" class="mut" style="text-align:center;padding:16px">No products found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const cfg = {{ chart_json|safe }};
+
+  /* dashed lines at the share and growth thresholds, plus quadrant names */
+  const quadrants = {
+    id: 'quadrants',
+    afterDraw(chart) {
+      const { ctx, chartArea: a, scales: s } = chart;
+      const xp = s.x.getPixelForValue(cfg.share_line);
+      const yp = s.y.getPixelForValue(cfg.growth_line);
+      ctx.save();
+      ctx.strokeStyle = '#9ca3af'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+      if (xp >= a.left && xp <= a.right) { ctx.beginPath(); ctx.moveTo(xp, a.top); ctx.lineTo(xp, a.bottom); ctx.stroke(); }
+      if (yp >= a.top && yp <= a.bottom) { ctx.beginPath(); ctx.moveTo(a.left, yp); ctx.lineTo(a.right, yp); ctx.stroke(); }
+      ctx.setLineDash([]); ctx.fillStyle = '#9ca3af'; ctx.font = '600 11px sans-serif';
+      ctx.textAlign = 'left';  ctx.fillText('QUESTION MARKS', a.left + 8, a.top + 16);
+      ctx.textAlign = 'right'; ctx.fillText('STARS', a.right - 8, a.top + 16);
+      ctx.textAlign = 'left';  ctx.fillText('DOGS', a.left + 8, a.bottom - 8);
+      ctx.textAlign = 'right'; ctx.fillText('CASH COWS', a.right - 8, a.bottom - 8);
+      ctx.restore();
+    }
+  };
+
+  const el = document.getElementById('bcgChart');
+  new Chart(el.getContext('2d'), {
+    type: 'bubble',
+    data: {
+      datasets: cfg.datasets.map(d => ({
+        label: d.label,
+        data: d.points,
+        backgroundColor: d.color + '99',
+        borderColor: d.color,
+        borderWidth: 1.5
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function (ctx) {
+              const p = ctx.raw;
+              return [p.name,
+                      'Sales: $' + p.rev.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+                      'Relative share: ' + p.x.toFixed(2),
+                      'Growth: ' + (p.new ? 'New product' : p.y + '%')];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { min: 0, suggestedMax: 1.15, title: { display: true, text: 'Relative share in category' }, grid: { color: '#f1f2f4' } },
+        y: { suggestedMin: -100, suggestedMax: 200, title: { display: true, text: 'Growth vs previous period (%)' }, grid: { color: '#f1f2f4' } }
+      }
+    },
+    plugins: [quadrants]
+  });
+
+  /* table search */
+  const rows = document.querySelectorAll('tr[data-row]');
+  document.getElementById('searchBox').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
+  });
+});
+</script>
+{% endblock pageContent %}

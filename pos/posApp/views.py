@@ -5229,6 +5229,59 @@ def generate_barcode(transaction_code):
     barcode_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
     return barcode_base64
 
+
+SALE_TYPE_LABELS = {"sale": "Sale", "return": "Return", "breakage": "Breakage"}
+
+
+@login_required
+@permission_required('saleslist', 'make_sales', any_of=True)
+def receipt_lookup(request):
+    shop, branch = get_user_shop_and_branch(request)
+    code = (request.GET.get("code") or "").strip()
+
+    sale = None
+    lines = []
+    error = ""
+
+    if code:
+        if not shop:
+            error = "Your account is not linked to a shop."
+        else:
+            qs = Transaction.objects.filter(shop=shop).select_related("user", "branch")
+            if not request.user.is_superuser and branch:
+                qs = qs.filter(branch=branch)
+
+            # the barcode holds the receipt number (older receipts: the transaction code)
+            sale = (qs.filter(Q(receipt_number__iexact=code) | Q(code=code))
+                      .order_by("-date_added").first())
+            if not sale:
+                error = f"No receipt found for “{code}”."
+
+    if sale:
+        rate = _dec(sale.exchange_rate) or Decimal("1")
+        items = SalesItem.objects.filter(transaction=sale).select_related("product")
+        for it in items:
+            unit = _dec(it.price) * rate           
+            line = _dec(it.total) * rate
+            lines.append(SimpleNamespace(
+                name=it.product.name,
+                qty=it.qty,
+                unit_price=unit,
+                line_total=line,
+                kind=it.type,
+                kind_label=SALE_TYPE_LABELS.get(it.type, "Sale"),
+            ))
+
+    return render(request, "posApp/receipt_lookup.html", {
+        "code": code,
+        "sale": sale,
+        "lines": lines,
+        "item_count": sum(l.qty for l in lines),
+        "error": error,
+        "shop_name": shop.name if shop else "",
+    })
+
+
 @login_required
 def exchange_rates(request):
     shop, branch = get_user_shop_and_branch(request)
@@ -5557,7 +5610,7 @@ def receipt(request, transaction_id=None):
     sub_total = sub_total_base * exchange_rate
     grand_total = grand_total_base * exchange_rate
 
-    barcode_image = generate_barcode(transaction.code)
+    barcode_image = generate_barcode(transaction.receipt_number or transaction.code)
 
     context = {
         "transaction": transaction,
@@ -5587,6 +5640,316 @@ def receipt(request, transaction_id=None):
     }
 
     return render(request, "posApp/receipt.html", context)
+
+SHARE_LINE = Decimal("0.5")     # relative share at or above this counts as "high share"
+LOW_STOCK = 20                  # same low-stock limit the dashboard uses
+STRATEGY_PERIODS = [30, 60, 90, 180, 365]
+
+BCG_ORDER = ["Star", "Question mark", "Cash cow", "Dog"]
+BCG_COLORS = {"Star": "#15803d", "Question mark": "#d97706", "Cash cow": "#1d5f8a", "Dog": "#dc2626"}
+BCG_ADVICE = {
+    "Star": "Winning and growing. Keep it well stocked and promote it.",
+    "Cash cow": "Steady seller. Protect its margin and use its cash to back your stars.",
+    "Question mark": "Growing but still small. Promote it for a month, then keep it or drop it.",
+    "Dog": "Low sales and low growth. Discount to clear it, or stop re-ordering.",
+}
+
+
+def _D(value):
+    return Decimal(str(value or 0))
+
+
+def _growth(current, previous):
+    """% change. None means 'new': it sold now but not in the previous period."""
+    if previous > 0:
+        return (current - previous) / previous * 100
+    return None if current > 0 else Decimal("0")
+
+
+def _strategy_scope(request):
+    shop, branch = get_user_shop_and_branch(request)
+    if not shop:
+        return None, None
+    if request.user.is_superuser:
+        branch = None
+        bid = request.GET.get("branch_id")
+        if bid:
+            branch = Branch.objects.filter(pk=bid, shop=shop).first()
+    return shop, branch
+
+
+def _strategy_days(request):
+    try:
+        days = int(request.GET.get("days", 90))
+    except (TypeError, ValueError):
+        days = 90
+    return days if days in STRATEGY_PERIODS else 90
+
+
+def _sales_by(shop, branch, start, end, *keys):
+    """Net sales (type 'sale') grouped by the given keys, for a date range, in USD."""
+    qs = SalesItem.objects.filter(
+        transaction__shop=shop, type="sale",
+        transaction__date_added__date__gte=start,
+        transaction__date_added__date__lte=end,
+    )
+    if branch:
+        qs = qs.filter(transaction__branch=branch)
+    return (qs.order_by().values(*keys).annotate(
+        rev=Sum("total"),
+        units=Sum("qty"),          # was "qty", which shadowed the field inside cost
+        cost=Sum(F("qty") * F("product__cprice"), output_field=FloatField()),
+    ))
+
+def _build_bcg(shop, branch, days):
+    today = timezone.localdate()
+    cur_start = today - timedelta(days=days - 1)
+    prev_end = cur_start - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=days - 1)
+
+    cur = {r["product_id"]: r for r in _sales_by(shop, branch, cur_start, today, "product_id")}
+    prev = {r["product_id"]: r for r in _sales_by(shop, branch, prev_start, prev_end, "product_id")}
+
+    cur_total = sum((_D(r["rev"]) for r in cur.values()), Decimal("0"))
+    prev_total = sum((_D(r["rev"]) for r in prev.values()), Decimal("0"))
+    market_growth = _growth(cur_total, prev_total)
+    if market_growth is None:
+        market_growth = Decimal("0")
+
+    products = Products.objects.filter(shop=shop, status=True).select_related("category", "branch")
+    if branch:
+        products = products.filter(branch=branch)
+    products = list(products)
+
+    # the leader of each category is the yardstick for relative share
+    cat_max = defaultdict(lambda: Decimal("0"))
+    for p in products:
+        c = cur.get(p.pk)
+        if c:
+            cat_max[p.category_id] = max(cat_max[p.category_id], _D(c["rev"]))
+
+    rows = []
+    for p in products:
+        c, pr = cur.get(p.pk), prev.get(p.pk)
+        rev = _D(c["rev"]) if c else Decimal("0")
+        qty = int(c["units"] or 0) if c else 0
+        cost = _D(c["cost"]) if c else Decimal("0")
+        prev_rev = _D(pr["rev"]) if pr else Decimal("0")
+        profit = rev - cost
+        margin = (profit / rev * 100) if rev > 0 else Decimal("0")
+
+        top = cat_max[p.category_id]
+        rel = (rev / top) if top > 0 else Decimal("0")
+        g = _growth(rev, prev_rev)
+
+        added = getattr(p, "date_added", None)
+        if added is not None and hasattr(added, "date"):
+            added = added.date()
+        is_new = (added >= cur_start) if added else (prev_rev == 0 and rev > 0)
+
+        if rev <= 0:
+            cls = "Dog"
+        else:
+            high_share = rel >= SHARE_LINE
+            high_growth = (g is None) or (g > market_growth)
+            if high_share and high_growth:
+                cls = "Star"
+            elif high_share:
+                cls = "Cash cow"
+            elif high_growth:
+                cls = "Question mark"
+            else:
+                cls = "Dog"
+
+        stock_value = _D(p.stock) * _D(p.cprice)
+        flag = ""
+        if cls in ("Star", "Cash cow") and p.stock < LOW_STOCK:
+            flag = "Restock soon"
+        elif cls == "Dog" and p.stock > 0 and rev <= 0:
+            flag = "No sales, cash tied up"
+
+        rows.append({
+            "product": p,
+            "label": f"{p.name} ({p.branch.name})" if (branch is None and p.branch_id) else p.name,
+            "category": p.category.name if p.category_id else "No category",
+            "revenue": rev, "prev_revenue": prev_rev, "qty": qty,
+            "profit": profit, "margin": margin,
+            "rel_share": rel, "growth": g, "is_new": is_new,
+            "stock": p.stock, "stock_value": stock_value,
+            "cls": cls, "flag": flag,
+        })
+
+    rows.sort(key=lambda r: r["revenue"], reverse=True)
+
+    groups = []
+    for name in BCG_ORDER:
+        members = [r for r in rows if r["cls"] == name]
+        groups.append({
+            "name": name, "rows": members, "count": len(members),
+            "revenue": sum((r["revenue"] for r in members), Decimal("0")),
+            "advice": BCG_ADVICE[name], "color": BCG_COLORS[name],
+        })
+
+    # bubble chart data (only products that sold)
+    sold = [r for r in rows if r["revenue"] > 0]
+    top_rev = max((r["revenue"] for r in sold), default=Decimal("1")) or Decimal("1")
+    datasets = []
+    for name in BCG_ORDER:
+        pts = []
+        for r in sold:
+            if r["cls"] != name:
+                continue
+            g = 100.0 if r["growth"] is None else float(r["growth"])
+            pts.append({
+                "x": round(float(r["rel_share"]), 3),
+                "y": round(max(-100.0, min(300.0, g)), 1),
+                "r": round(5 + 20 * (float(r["revenue"] / top_rev) ** 0.5), 1),
+                "name": r["label"],
+                "rev": round(float(r["revenue"]), 2),
+                "new": r["growth"] is None,
+            })
+        datasets.append({"label": name, "color": BCG_COLORS[name], "points": pts})
+
+    return {
+        "rows": rows, "groups": groups,
+        "market_growth": market_growth,
+        "cur_total": cur_total, "prev_total": prev_total,
+        "cur_start": cur_start, "today": today,
+        "prev_start": prev_start, "prev_end": prev_end,
+        "chart": {"datasets": datasets, "share_line": float(SHARE_LINE),
+                  "growth_line": round(float(market_growth), 1)},
+    }
+
+
+@login_required
+@permission_required('view_strategy')
+def bcg_matrix(request):
+    shop, branch = _strategy_scope(request)
+    if not shop:
+        messages.error(request, "Your account is not linked to a shop.")
+        return redirect("pos-page")
+
+    days = _strategy_days(request)
+    data = _build_bcg(shop, branch, days)
+
+    return render(request, "posApp/bcg_matrix.html", {
+        **data,
+        "chart_json": json.dumps(data["chart"]),
+        "share_line": SHARE_LINE,
+        "days": days, "periods": STRATEGY_PERIODS,
+        "all_branches": Branch.objects.filter(shop=shop) if request.user.is_superuser else None,
+        "selected_branch_id": branch.id if branch else None,
+        "shop_name": shop.name,
+        "branch_name": branch.name if branch else "All branches",
+        "low_stock": LOW_STOCK,
+    })
+
+
+# ----------------------------------------------------------------------
+# ANSOFF
+# ----------------------------------------------------------------------
+def _market_gaps(shop, branch, start, end):
+    """Top sellers that do not sell in some branches: the 'new market' for an existing product."""
+    branches = list(Branch.objects.filter(shop=shop).order_by("name"))
+    if len(branches) < 2:
+        return branches, []
+
+    by_name = defaultdict(dict)
+    totals = defaultdict(lambda: Decimal("0"))
+    for r in _sales_by(shop, None, start, end, "product__name", "transaction__branch_id"):
+        rev = _D(r["rev"])
+        by_name[r["product__name"]][r["transaction__branch_id"]] = rev
+        totals[r["product__name"]] += rev
+
+    stocked = {(p["name"], p["branch_id"]): p["id"]
+               for p in Products.objects.filter(shop=shop, status=True).values("name", "branch_id", "id")}
+
+    gaps = []
+    for name in sorted(totals, key=totals.get, reverse=True)[:15]:
+        sells = [b for b in branches if by_name[name].get(b.id, 0) > 0]
+        missing = [b for b in branches if b not in sells]
+        if not sells or not missing:
+            continue
+        if branch and branch not in missing:
+            continue
+        gaps.append({
+            "name": name,
+            "revenue": totals[name],
+            "sells_in": [b.name for b in sells],
+            "not_selling": [b.name for b in missing if (name, b.id) in stocked],
+            "not_stocked": [b.name for b in missing if (name, b.id) not in stocked],
+            "product_id": stocked.get((name, sells[0].id)),
+        })
+    return branches, gaps[:8]
+
+
+@login_required
+@permission_required('view_strategy')
+def ansoff_matrix(request):
+    shop, branch = _strategy_scope(request)
+    if not shop:
+        messages.error(request, "Your account is not linked to a shop.")
+        return redirect("pos-page")
+
+    days = _strategy_days(request)
+    bcg = _build_bcg(shop, branch, days)
+    rows = bcg["rows"]
+    total_rev = bcg["cur_total"]
+    total_profit = sum((r["profit"] for r in rows), Decimal("0"))
+    avg_margin = (total_profit / total_rev * 100) if total_rev > 0 else Decimal("0")
+
+    # 1. Market penetration: existing products, existing market
+    penetration = sorted(
+        [r for r in rows if r["revenue"] > 0 and r["cls"] in ("Cash cow", "Question mark")],
+        key=lambda r: r["margin"], reverse=True)[:8]
+
+    # 2. Product development: new products, existing market
+    new_products = [r for r in rows if r["is_new"]][:8]
+
+    cats = {}
+    for r in rows:
+        c = cats.setdefault(r["category"], {"name": r["category"], "rev": Decimal("0"),
+                                            "prev": Decimal("0"), "count": 0})
+        c["rev"] += r["revenue"]
+        c["prev"] += r["prev_revenue"]
+        c["count"] += 1
+    for c in cats.values():
+        c["growth"] = _growth(c["rev"], c["prev"])
+        c["thin"] = c["count"] <= 3
+    hot_categories = sorted(
+        [c for c in cats.values() if c["rev"] > 0],
+        key=lambda c: (999 if c["growth"] is None else float(c["growth"])), reverse=True)[:5]
+
+    # 3. Market development: existing products, new market (other branches)
+    branches, gaps = _market_gaps(shop, branch, bcg["cur_start"], bcg["today"])
+
+    # 4. Diversification: new products, new market
+    cat_share = []
+    for c in sorted(cats.values(), key=lambda c: c["rev"], reverse=True)[:6]:
+        share = (c["rev"] / total_rev * 100) if total_rev > 0 else Decimal("0")
+        cat_share.append({"name": c["name"], "rev": c["rev"], "share": share})
+    top_share = cat_share[0]["share"] if cat_share else Decimal("0")
+
+    dead = sorted([r for r in rows if r["revenue"] <= 0 and r["stock"] > 0],
+                  key=lambda r: r["stock_value"], reverse=True)
+    tied_cash = sum((r["stock_value"] for r in dead), Decimal("0"))
+
+    return render(request, "posApp/ansoff_matrix.html", {
+        "days": days, "periods": STRATEGY_PERIODS,
+        "cur_start": bcg["cur_start"], "today": bcg["today"],
+        "total_rev": total_rev, "avg_margin": avg_margin,
+        "penetration": penetration,
+        "new_products": new_products,
+        "hot_categories": hot_categories,
+        "multi_branch": len(branches) > 1, "gaps": gaps,
+        "cat_share": cat_share, "top_share": top_share, "dependent": top_share > 60,
+        "dead": dead[:8], "dead_count": len(dead), "tied_cash": tied_cash,
+        "all_branches": Branch.objects.filter(shop=shop) if request.user.is_superuser else None,
+        "selected_branch_id": branch.id if branch else None,
+        "shop_name": shop.name,
+        "branch_name": branch.name if branch else "All branches",
+    })
+
 
 @login_required
 def receipt_view(request, transaction_id):

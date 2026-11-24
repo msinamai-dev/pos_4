@@ -30,6 +30,7 @@ PERMISSION_GROUPS = [
         ("stock_count_report", "Stock count reports & discrepancies"),
         ("saleslist", "Sales list"),
         ("view_income_statement", "Income statement"),
+        ("view_strategy", "Strategy matrices (BCG & Ansoff)"),
     ]),
     ("Users & Settings", [
         ("manage_users", "Open the Settings menu / manage roles"),

@@ -1,0 +1,151 @@
+{% extends "posApp/base.html" %}
+{% load humanize %}
+
+{% block pageContent %}
+<style>
+  .an {
+    --an-border: #e5e7eb;
+    --an-muted: #6b7280;
+    --an-text: #111827;
+    --an-soft: #f3f4f6;
+    --an-accent: #1d5f8a;
+    --an-green: #15803d;
+    --an-red: #dc2626;
+    color: var(--an-text);
+    font-size: 14px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--an-border);
+    border-radius: 10px;
+    padding: 0 24px 28px;
+    min-width: 0;
+  }
+  .an-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0 10px; }
+  .an-crumb { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--an-border); border-radius: 6px; padding: 4px 10px; font-size: .85rem; background: #fff; }
+  .an-crumb small { color: var(--an-muted); }
+
+  .an-btn { height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--an-accent); background: var(--an-accent); color: #fff; font-size: .85rem; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; cursor: pointer; }
+  .an-btn:hover { color: #fff; opacity: .92; }
+  .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
+
+  /* scan box */
+  .an-scan { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px; padding: 14px 16px; margin-bottom: 18px; }
+  .an-scan label { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .72rem; font-weight: 600; color: var(--an-muted); flex: 1 1 280px; }
+  .an-scan input[type=text] {
+    box-sizing: border-box !important; height: 40px !important; width: 100% !important;
+    margin: 0 !important; padding: 0 12px !important; font-size: 1rem !important;
+    border: 1px solid var(--an-border) !important; border-radius: 6px !important; background: #fff;
+  }
+  .an-scan .hint { flex-basis: 100%; color: var(--an-muted); font-size: .76rem; margin: 0; }
+
+  .an-alert { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; }
+
+  /* result */
+  .an-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-bottom: 20px; }
+  .an-meta .l { color: var(--an-muted); font-size: .76rem; }
+  .an-meta .v { font-weight: 600; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; }
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 2px 0 14px; }
+
+  .an-table-scroll { overflow: auto; border: 1px solid #eef0f5; border-radius: 8px; }
+  .an-table { width: 100%; border-collapse: collapse; }
+  .an-table th { background: #f9fafb; color: var(--an-muted); font-weight: 500; font-size: .75rem; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--an-border); }
+  .an-table th.r, .an-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .an-table td { padding: 10px 12px; border-bottom: 1px solid #f1f2f4; font-size: .9rem; }
+  .an-table tr:last-child td { border-bottom: 0; }
+  .an-table .b { font-weight: 600; }
+
+  .an-totals { max-width: 360px; margin: 16px 0 0 auto; }
+  .an-kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f1f2f4; font-size: .9rem; }
+  .an-kv:last-child { border-bottom: 0; }
+  .an-kv.big { font-weight: 700; font-size: 1.05rem; }
+  .an-kv span:last-child { font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 500; }
+  .pill.sale { background: #dbeafe; color: #1e40af; }
+  .pill.return { background: #dcfce7; color: #166534; }
+  .pill.breakage { background: #fee2e2; color: #991b1b; }
+
+  @media (max-width: 760px) {
+    .an { padding: 0 14px 22px; }
+    .an-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+
+<div class="an mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+
+  <div class="an-head">
+    <span class="an-crumb">
+      <i class="bi bi-upc-scan"></i> Receipt lookup
+      {% if shop_name %}<small>{{ shop_name }}</small>{% endif %}
+    </span>
+  </div>
+
+  <!-- scan box: a barcode scanner types the code and presses Enter, which submits this form -->
+  <form method="get" class="an-scan" id="scanForm" autocomplete="off">
+    <label>Scan the receipt barcode, or type the receipt number
+      <input type="text" name="code" id="codeInput" value="{{ code }}" placeholder="e.g. SU-DO-000042" autofocus>
+    </label>
+    <button type="submit" class="an-btn"><i class="bi bi-search"></i> Find receipt</button>
+    <a href="{% url 'receipt_lookup' %}" class="an-btn ghost">Clear</a>
+    <p class="hint">Click in the box, then scan. The items and prices appear straight away.</p>
+  </form>
+
+  {% if error %}
+  <div class="an-alert">{{ error }}</div>
+  {% endif %}
+
+  {% if sale %}
+  <h2 class="title">Receipt {{ sale.receipt_number|default:sale.code }}</h2>
+
+  <div class="an-meta">
+    <div><div class="l">Date</div><div class="v">{{ sale.date_added|date:"d M Y H:i" }}</div></div>
+    <div><div class="l">Cashier</div><div class="v">{{ sale.user.get_full_name|default:sale.user.username|default:"-" }}</div></div>
+    <div><div class="l">Customer</div><div class="v">{{ sale.customer_name|default:"-" }}</div></div>
+    <div><div class="l">Branch</div><div class="v">{{ sale.branch.name|default:"-" }}</div></div>
+    <div><div class="l">Payment</div><div class="v">{{ sale.payment_method|default:"-"|title }}</div></div>
+    <div><div class="l">Currency</div><div class="v">{{ sale.currency|default:"USD" }}</div></div>
+    <div><div class="l">Items</div><div class="v">{{ item_count }}</div></div>
+    <div><div class="l">Transaction code</div><div class="v">{{ sale.code }}</div></div>
+  </div>
+
+  <div class="an-table-scroll">
+    <table class="an-table table-no-tools">
+      <thead>
+        <tr>
+          <th>Product</th><th>Type</th>
+          <th class="r">Qty</th><th class="r">Price ({{ sale.currency|default:"USD" }})</th><th class="r">Total ({{ sale.currency|default:"USD" }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lines %}
+        <tr>
+          <td class="b">{{ l.name }}</td>
+          <td><span class="pill {{ l.kind }}">{{ l.kind_label }}</span></td>
+          <td class="r">{{ l.qty }}</td>
+          <td class="r">{{ l.unit_price|floatformat:2|intcomma }}</td>
+          <td class="r b">{{ l.line_total|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:var(--an-muted)">No items on this receipt</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="an-totals">
+    <div class="an-kv big"><span>Total</span><span>{{ sale.currency|default:"USD" }} {{ sale.grand_total|floatformat:2|intcomma }}</span></div>
+    <div class="an-kv"><span>Tendered</span><span>{{ sale.currency|default:"USD" }} {{ sale.tendered_amount|floatformat:2|intcomma }}</span></div>
+    <div class="an-kv"><span>Change</span><span>{{ sale.currency|default:"USD" }} {{ sale.amount_change|floatformat:2|intcomma }}</span></div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var input = document.getElementById("codeInput");
+  input.focus();
+  input.select();      // so the next scan replaces the previous code
+});
+</script>
+{% endblock pageContent %}

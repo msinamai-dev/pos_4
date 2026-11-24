@@ -350,6 +350,13 @@
                             </a>
                         </div>
                         {% endif %}
+                        {% if "view_strategy" in user_perms %}
+<div class="mdc-list-item mdc-drawer-item">
+    <a class="mdc-drawer-link" href="{% url 'bcg_matrix' %}">
+        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">grid</i> Strategy Matrices
+    </a>
+</div>
+{% endif %}
 
                         {% if "stock_adjustment" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
@@ -358,6 +365,14 @@
                             </a>
                         </div>
                         {% endif %}
+
+                        {% if "saleslist" in user_perms or "make_sales" in user_perms %}
+<div class="mdc-list-item mdc-drawer-item">
+    <a class="mdc-drawer-link" href="{% url 'receipt_lookup' %}">
+        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">scanner</i> Receipt Lookup
+    </a>
+</div>
+{% endif %}
 
                         {% if "manage_stocks" in user_perms %}
                         <div class="mdc-list-item mdc-drawer-item">
@@ -379,7 +394,7 @@
                 {% endif %}
 
                 {% comment %}
-                <!-- ERP connections (kept as a Django comment so the {% url %} is not evaluated) -->
+                
                 <div class="mdc-list-item mdc-drawer-item">
                     <a class="mdc-drawer-link" href="{% url 'erp-link-requests' %}">
                         <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon">verified_user</i> ERP shop connections
@@ -387,7 +402,7 @@
                 </div>
                 {% endcomment %}
 
-                <!-- ===== Settings ===== -->
+                <!--Settings  -->
                 {% if "manage_users" in user_perms or auto_sections.Settings %}
                 <div class="mdc-list-item mdc-drawer-item">
                     <a class="mdc-drawer-link d-flex justify-content-between align-items-center"

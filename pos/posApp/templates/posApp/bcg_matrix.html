@@ -135,11 +135,11 @@
     <span class="scope">{{ cur_start|date:"d M Y" }} to {{ today|date:"d M Y" }} compared with {{ prev_start|date:"d M Y" }} to {{ prev_end|date:"d M Y" }}</span>
   </form>
 
-  <h2 class="title">Boston (BCG) matrix</h2>
+  <h2 class="title"> Matrix</h2>
   <p class="note">
     <b>Share</b> compares each product with the best seller in its own category (high = at least {{ share_line }} of the leader).
     <b>Growth</b> compares its sales with the previous period of the same length, against how your whole business grew
-    ({{ market_growth|floatformat:1 }}%). Sales are counted in USD and include only items sold (returns and breakage are left out). A product that sold now but not before counts as new and high growth.
+    ({{ market_growth|floatformat:1 }}%). Sales are counted in USD and include only items sold (returns and breakage are left out). 
   </p>
 
   <div class="an-stats">
@@ -157,7 +157,6 @@
     <div class="an-chart-box"><canvas id="bcgChart"></canvas></div>
   </div>
 
-  <!-- quadrants: same layout as the chart (share to the right, growth up) -->
   <div class="quad-wrap">
     <div class="axis-y">GROWTH &rarr;</div>
 

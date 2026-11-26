@@ -32,44 +32,36 @@
   .an-btn:hover { color: #fff; opacity: .92; }
   .an-btn.ghost { background: #fff; color: var(--an-muted); border-color: var(--an-border); }
 
-  .an-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; }
+  .an-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; background: #f9fafb; border: 1px solid var(--an-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; }
   .an-filters .fl { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: .72rem; color: var(--an-muted); white-space: nowrap; }
   .an-filters .fl .lbl { font-weight: 600; line-height: 1; }
-  .an-filters .ttl { align-self: center; flex-direction: row; align-items: center; gap: 6px; font-weight: 600; font-size: .8rem; color: var(--an-text); }
   .an-filters select { box-sizing: border-box !important; height: 34px !important; min-height: 34px !important; width: 170px !important; margin: 0 !important; padding: 0 10px !important; border: 1px solid var(--an-border) !important; border-radius: 6px !important; font-size: .8rem !important; background-color: #fff; }
   .an-filters .scope { margin-left: auto; align-self: center; font-size: .72rem; color: var(--an-muted); }
 
-  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 4px 0 6px; }
-  .an .note { color: var(--an-muted); font-size: .78rem; margin: 0 0 14px; }
+  .an h2.title { font-size: 1.05rem; font-weight: 600; margin: 4px 0 12px; }
 
-  /* the 2 x 2 grid */
-  .ans-grid { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 8px; }
+  .ans-grid { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .axis { display: flex; align-items: center; justify-content: center; text-align: center; font-size: .76rem; font-weight: 600; letter-spacing: .04em; color: var(--an-muted); text-transform: uppercase; }
   .axis.top { padding-bottom: 2px; }
 
   .q { border: 1px solid var(--an-border); border-top-width: 4px; border-radius: 10px; padding: 14px 16px; min-width: 0; background: #fff; }
   .q h3 { font-size: 1rem; font-weight: 600; margin: 0 0 2px; }
-  .q .what { color: var(--an-muted); font-size: .8rem; margin: 0 0 10px; }
-  .q .metric { background: var(--an-soft); border-radius: 8px; padding: 8px 12px; font-size: .82rem; margin-bottom: 10px; }
-  .q .metric b { font-size: 1rem; }
-  .q h4 { font-size: .78rem; font-weight: 600; color: var(--an-muted); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 4px; }
-  .q ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+  .q .what { color: var(--an-muted); font-size: .8rem; margin: 0 0 8px; }
+  .q h4 { font-size: .76rem; font-weight: 600; color: var(--an-muted); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 4px; }
+  .q ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
   .q li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1f2f4; font-size: .84rem; }
   .q li:last-child { border-bottom: 0; }
-  .q li a { color: var(--an-text); font-weight: 500; text-decoration: none; }
+  .q li a { color: var(--an-text); font-weight: 500; text-decoration: none; cursor: pointer; }
   .q li a:hover { color: var(--an-accent); text-decoration: underline; }
   .q li .sub { display: block; color: var(--an-muted); font-size: .74rem; font-weight: 400; }
   .q li .v { color: var(--an-muted); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
-  .q .empty { color: var(--an-muted); font-size: .82rem; padding: 8px 0; }
+  .q .empty { color: var(--an-muted); font-size: .82rem; padding: 6px 0; }
   .q .act { font-size: .78rem; margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--an-accent); background: #f9fafb; border-radius: 0 6px 6px 0; }
   .q .act.warn { border-left-color: var(--an-amber); }
   .pos { color: var(--an-green); }
   .neg { color: var(--an-red); }
   .bar { display: block; height: 5px; border-radius: 999px; background: var(--an-soft); margin-top: 4px; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--an-accent); }
-
-  .how { margin-top: 22px; border: 1px solid var(--an-border); border-radius: 10px; padding: 14px 16px; font-size: .82rem; color: var(--an-muted); }
-  .how b { color: var(--an-text); }
 
   @media (max-width: 900px) {
     .ans-grid { grid-template-columns: minmax(0, 1fr); }
@@ -86,13 +78,12 @@
       <small>{{ shop_name }} &middot; {{ branch_name }}</small>
     </span>
     <div class="an-switch">
-      <a href="{% url 'bcg_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}">BCG matrix</a>
-      <a href="{% url 'ansoff_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}" class="active">Ansoff matrix</a>
+      <a href="{% url 'bcg_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}">Product performance</a>
+      <a href="{% url 'ansoff_matrix' %}?days={{ days }}{% if selected_branch_id %}&branch_id={{ selected_branch_id }}{% endif %}" class="active">Growth ideas</a>
     </div>
   </div>
 
   <form method="get" class="an-filters">
-    <span class="fl ttl"><i class="bi bi-funnel"></i> Filters</span>
     {% if all_branches %}
     <label class="fl"><span class="lbl">Branch</span>
       <select name="branch_id">
@@ -112,51 +103,46 @@
     </label>
     <button type="submit" class="an-btn">Apply</button>
     <a href="{% url 'ansoff_matrix' %}" class="an-btn ghost">Reset</a>
-    <span class="scope">{{ cur_start|date:"d M Y" }} to {{ today|date:"d M Y" }} &middot; sales ${{ total_rev|floatformat:2|intcomma }}</span>
+    <span class="scope">Sales ${{ total_rev|floatformat:2|intcomma }} &middot; margin {{ avg_margin|floatformat:0 }}%</span>
   </form>
 
-  <h2 class="title">Ansoff growth matrix</h2>
-  <p class="note">Four ways to grow, each linked to your real products. Names open that product's history.</p>
+  <h2 class="title">Four ways to grow</h2>
 
   <div class="ans-grid">
     <div></div>
-    <div class="axis top">Existing products</div>
+    <div class="axis top">Products you have</div>
     <div class="axis top">New products</div>
 
-    <!-- row 1: existing market -->
-    <div class="axis">Existing markets</div>
+    <div class="axis">Current customers</div>
 
     <div class="q" style="border-top-color:#1d5f8a">
-      <h3>1. Market penetration</h3>
-      <p class="what">Sell more of what you already sell to the customers you already have.</p>
-      <div class="metric">Average margin <b>{{ avg_margin|floatformat:1 }}%</b></div>
-      <h4>Push these first (best margin, not yet stars)</h4>
+      <h3>1. Sell more</h3>
+      <p class="what">Push the products with the best margin.</p>
       {% if penetration %}
       <ul>
         {% for r in penetration %}
         <li>
-          <span><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a>
-            <span class="sub">{{ r.cls }} &middot; {{ r.category }}</span></span>
-          <span class="v">{{ r.margin|floatformat:1 }}% margin<br>${{ r.revenue|floatformat:2|intcomma }}</span>
+          <span><a href="{% url 'product_history' r.product.id %}" data-pid="{{ r.product.id }}">{{ r.label }}</a>
+            <span class="sub">{{ r.category }}</span></span>
+          <span class="v">{{ r.margin|floatformat:0 }}% margin<br>${{ r.revenue|floatformat:2|intcomma }}</span>
         </li>
         {% endfor %}
       </ul>
-      <div class="act">Run a promotion, bundle them with a best seller, or place them at the till.</div>
+      <div class="act">Promote them or place them at the till.</div>
       {% else %}
-      <div class="empty">No cash cows or question marks with sales in this period.</div>
+      <div class="empty">Nothing to push in this period.</div>
       {% endif %}
     </div>
 
     <div class="q" style="border-top-color:#15803d">
-      <h3>2. Product development</h3>
-      <p class="what">Bring new products to the customers you already have.</p>
-      <h4>Products added or first sold in this period</h4>
+      <h3>2. Add new products</h3>
+      <p class="what">Recently added products and categories that are growing.</p>
       {% if new_products %}
       <ul>
         {% for r in new_products %}
         <li>
-          <span><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a>
-            <span class="sub">{{ r.category }} &middot; stock {{ r.stock }}</span></span>
+          <span><a href="{% url 'product_history' r.product.id %}" data-pid="{{ r.product.id }}">{{ r.label }}</a>
+            <span class="sub">{{ r.category }}</span></span>
           <span class="v">${{ r.revenue|floatformat:2|intcomma }}<br>{{ r.qty }} sold</span>
         </li>
         {% endfor %}
@@ -164,95 +150,85 @@
       {% else %}
       <div class="empty">No new products in this period.</div>
       {% endif %}
-      <h4>Fastest growing categories</h4>
       {% if hot_categories %}
+      <h4>Growing categories</h4>
       <ul>
         {% for c in hot_categories %}
         <li>
-          <span>{{ c.name }}<span class="sub">{{ c.count }} product{{ c.count|pluralize }}{% if c.thin %} &middot; thin range{% endif %}</span></span>
-          <span class="v {% if c.growth is None or c.growth > 0 %}pos{% else %}neg{% endif %}">{% if c.growth is None %}New{% else %}{{ c.growth|floatformat:1 }}%{% endif %}</span>
+          <span>{{ c.name }}{% if c.thin %}<span class="sub">Few products. Add more.</span>{% endif %}</span>
+          <span class="v {% if c.growth is None or c.growth > 0 %}pos{% else %}neg{% endif %}">{% if c.growth is None %}New{% else %}{{ c.growth|floatformat:0 }}%{% endif %}</span>
         </li>
         {% endfor %}
       </ul>
-      <div class="act">Add more products to growing categories, especially ones marked <b>thin range</b>.</div>
       {% endif %}
     </div>
 
-    <!-- row 2: new market -->
-    <div class="axis">New markets</div>
+    <div class="axis">New customers</div>
 
     <div class="q" style="border-top-color:#d97706">
-      <h3>3. Market development</h3>
-      <p class="what">Take products that already sell well to new customers: another branch, another area, another currency.</p>
+      <h3>3. Reach new customers</h3>
+      <p class="what">Take your best sellers to other branches.</p>
       {% if multi_branch %}
-        <h4>Top sellers missing from some branches</h4>
         {% if gaps %}
         <ul>
           {% for g in gaps %}
           <li>
             <span>
-              {% if g.product_id %}<a href="{% url 'product_history' g.product_id %}">{{ g.name }}</a>{% else %}{{ g.name }}{% endif %}
+              {% if g.product_id %}<a href="{% url 'product_history' g.product_id %}" data-pid="{{ g.product_id }}">{{ g.name }}</a>{% else %}{{ g.name }}{% endif %}
               <span class="sub">
                 Sells in {{ g.sells_in|join:", " }}.
-                {% if g.not_selling %}Stocked but not selling in {{ g.not_selling|join:", " }}.{% endif %}
-                {% if g.not_stocked %}Not stocked in {{ g.not_stocked|join:", " }}.{% endif %}
+                {% if g.not_selling %}Not selling in {{ g.not_selling|join:", " }}.{% endif %}
+                {% if g.not_stocked %}Missing in {{ g.not_stocked|join:", " }}.{% endif %}
               </span>
             </span>
             <span class="v">${{ g.revenue|floatformat:2|intcomma }}</span>
           </li>
           {% endfor %}
         </ul>
-        <div class="act">Not stocked: use <b>Product Transfer</b> to move stock over. Stocked but not selling: promote it there.</div>
+        <div class="act">Missing: transfer stock. Not selling: promote it there.</div>
         {% else %}
-        <div class="empty">Your top sellers already sell in every branch.</div>
+        <div class="empty">Your best sellers already sell in every branch.</div>
         {% endif %}
       {% else %}
-        <div class="empty">You have one branch, so there are no branch gaps to find. To open a new market, add a branch, sell to a new customer group (businesses, schools, wholesale), or accept another currency.</div>
+        <div class="empty">You have one branch. Try a new branch, wholesale, schools or businesses.</div>
       {% endif %}
     </div>
 
     <div class="q" style="border-top-color:#dc2626">
-      <h3>4. Diversification</h3>
-      <p class="what">New products for new customers. The riskiest option, so check how dependent you are first.</p>
-      <div class="metric">Biggest category is <b>{{ top_share|floatformat:0 }}%</b> of sales</div>
-      <h4>Sales share by category</h4>
+      <h3>4. Try something new</h3>
+      <p class="what">The riskiest. First check what you depend on and what is stuck.</p>
       {% if cat_share %}
+      <h4>Share of sales by category</h4>
       <ul>
         {% for c in cat_share %}
         <li>
           <span style="flex:1">{{ c.name }}<span class="bar"><i style="width:{{ c.share|floatformat:0 }}%"></i></span></span>
-          <span class="v">{{ c.share|floatformat:1 }}%</span>
+          <span class="v">{{ c.share|floatformat:0 }}%</span>
         </li>
         {% endfor %}
       </ul>
       {% if dependent %}
-      <div class="act warn">More than 60% of sales come from one category. A new category would reduce that risk.</div>
+      <div class="act warn">Over 60% of sales come from one category. Add another to lower the risk.</div>
       {% endif %}
       {% else %}
       <div class="empty">No sales in this period.</div>
       {% endif %}
 
-      <h4>Cash tied up in products with no sales</h4>
       {% if dead %}
+      <h4>Stock that did not sell</h4>
       <ul>
         {% for r in dead %}
         <li>
-          <span><a href="{% url 'product_history' r.product.id %}">{{ r.label }}</a><span class="sub">{{ r.category }} &middot; {{ r.stock }} in stock</span></span>
+          <span><a href="{% url 'product_history' r.product.id %}" data-pid="{{ r.product.id }}">{{ r.label }}</a><span class="sub">{{ r.stock }} in stock</span></span>
           <span class="v">${{ r.stock_value|floatformat:2|intcomma }}</span>
         </li>
         {% endfor %}
       </ul>
-      <div class="act warn">${{ tied_cash|floatformat:2|intcomma }} is sitting in {{ dead_count }} product{{ dead_count|pluralize }} that did not sell. Clear them before buying into something new.</div>
-      {% else %}
-      <div class="empty">Every stocked product sold at least once.</div>
+      <div class="act warn">${{ tied_cash|floatformat:2|intcomma }} is tied up in {{ dead_count }} product{{ dead_count|pluralize }}. Clear them first.</div>
       {% endif %}
     </div>
   </div>
-
-  <div class="how">
-    <b>How to read this.</b> The Ansoff matrix chooses a growth route by asking two questions: is the product new or existing, and is the market new or existing?
-    In a shop, a &ldquo;market&rdquo; means a group of customers, such as a branch, an area or a currency.
-    The lists are suggestions drawn from your sales, not decisions. Use the <b>BCG matrix</b> to see which products to back and which to drop.
-  </div>
 </div>
+
+{% include "posApp/_product_modal.html" %}
 {% endblock pageContent %}

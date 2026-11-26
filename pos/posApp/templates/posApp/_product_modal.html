@@ -1,0 +1,122 @@
+{# Product popup. Include once at the bottom of a page: {% include "posApp/_product_modal.html" %} #}
+{# Needs "popup" (dict keyed by product id) and "days" in the context. #}
+<style>
+  .pm { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(17, 24, 39, .45); }
+  .pm[hidden] { display: none; }
+  .pm-card { position: relative; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 12px; padding: 22px 22px 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
+  .pm-x { position: absolute; top: 8px; right: 10px; width: 34px; height: 34px; border: 0; background: transparent; font-size: 1.6rem; line-height: 1; color: #6b7280; border-radius: 8px; cursor: pointer; }
+  .pm-x:hover { background: #f3f4f6; color: #111827; }
+  .pm-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+  .pm-card h3 { font-size: 1.1rem; font-weight: 600; margin: 10px 28px 2px 0; color: #111827; }
+  .pm-cat { margin: 0 0 12px; color: #6b7280; font-size: .82rem; }
+  .pm-advice { margin: 0 0 14px; padding: 9px 12px; background: #f9fafb; border-left: 3px solid #1d5f8a; border-radius: 0 6px 6px 0; font-size: .85rem; color: #111827; }
+  .pm-flag { margin: -4px 0 14px; color: #d97706; font-size: .8rem; font-weight: 600; }
+  .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .pm-grid div { border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; }
+  .pm-grid small { display: block; color: #6b7280; font-size: .72rem; }
+  .pm-grid b { display: block; margin-top: 2px; font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #111827; }
+  .pm-grid .up { color: #15803d; }
+  .pm-grid .down { color: #dc2626; }
+  .pm-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .pm-foot a { font-size: .82rem; color: #1d5f8a; text-decoration: none; }
+  .pm-foot a:hover { text-decoration: underline; }
+  .pm-foot button { height: 34px; padding: 0 16px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #111827; font-size: .82rem; cursor: pointer; }
+  .pm-foot button:hover { background: #f3f4f6; }
+</style>
+
+<div class="pm" id="pm" data-days="{{ days }}" hidden>
+  <div class="pm-card" role="dialog" aria-modal="true" aria-labelledby="pm-name">
+    <button type="button" class="pm-x" id="pm-x" aria-label="Close">&times;</button>
+    <span class="pm-tag" id="pm-tag"></span>
+    <h3 id="pm-name"></h3>
+    <p class="pm-cat" id="pm-cat"></p>
+    <p class="pm-advice" id="pm-advice"></p>
+    <p class="pm-flag" id="pm-flag" hidden></p>
+    <div class="pm-grid">
+      <div><small id="pm-sales-l">Sales</small><b id="pm-sales"></b></div>
+      <div><small>Compared with before</small><b id="pm-change"></b></div>
+      <div><small>Profit margin</small><b id="pm-margin"></b></div>
+      <div><small>In stock</small><b id="pm-stock"></b></div>
+    </div>
+    <div class="pm-foot">
+      <a id="pm-more" href="#">Full history</a>
+      <button type="button" id="pm-close">Close</button>
+    </div>
+  </div>
+</div>
+
+{{ popup|json_script:"popup-data" }}
+<script>
+(function () {
+  var modal = document.getElementById('pm');
+  if (!modal) return;
+  var dataEl = document.getElementById('popup-data');
+  var DATA = dataEl ? JSON.parse(dataEl.textContent) || {} : {};
+  var days = modal.getAttribute('data-days');
+  var lastFocus = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (v) {
+    return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  function openProduct(id) {
+    var d = DATA[id];
+    if (!d) return false;
+    var tag = $('pm-tag');
+    tag.textContent = d.group;
+    tag.style.color = d.color;
+    tag.style.background = d.color + '22';
+    $('pm-name').textContent = d.name;
+    $('pm-cat').textContent = d.category;
+    $('pm-advice').textContent = d.advice;
+    $('pm-advice').style.borderLeftColor = d.color;
+
+    var flag = $('pm-flag');
+    flag.hidden = !d.flag;
+    flag.textContent = d.flag;
+
+    $('pm-sales-l').textContent = 'Sales, last ' + days + ' days';
+    $('pm-sales').textContent = money(d.sales);
+
+    var ch = $('pm-change');
+    ch.className = '';
+    if (d.sales <= 0) { ch.textContent = 'No sales'; }
+    else if (d.growth === null) { ch.textContent = 'New'; ch.className = 'up'; }
+    else if (d.growth > 0) { ch.textContent = 'Up ' + d.growth.toFixed(0) + '%'; ch.className = 'up'; }
+    else if (d.growth < 0) { ch.textContent = 'Down ' + Math.abs(d.growth).toFixed(0) + '%'; ch.className = 'down'; }
+    else { ch.textContent = 'No change'; }
+
+    $('pm-margin').textContent = d.sales > 0 ? d.margin.toFixed(0) + '%' : '-';
+    var st = $('pm-stock');
+    st.textContent = d.stock;
+    st.className = d.low ? 'down' : '';
+    $('pm-more').href = d.url;
+
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('pm-close').focus();
+    return true;
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    if (lastFocus) lastFocus.focus();
+  }
+
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('[data-pid]');
+    if (link && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      lastFocus = link;
+      if (openProduct(link.getAttribute('data-pid'))) e.preventDefault();  // no data: follow the normal link
+      return;
+    }
+    if (e.target === modal || e.target.closest('#pm-x') || e.target.closest('#pm-close')) closeModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.hidden) closeModal();
+  });
+
+  window.openProduct = openProduct;
+})();
+</script>

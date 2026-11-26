@@ -5648,22 +5648,50 @@ STRATEGY_PERIODS = [30, 60, 90, 180, 365]
 BCG_ORDER = ["Star", "Question mark", "Cash cow", "Dog"]
 BCG_COLORS = {"Star": "#15803d", "Question mark": "#d97706", "Cash cow": "#1d5f8a", "Dog": "#dc2626"}
 BCG_ADVICE = {
-    "Star": "Winning and growing. Keep it well stocked and promote it.",
-    "Cash cow": "Steady seller. Protect its margin and use its cash to back your stars.",
-    "Question mark": "Growing but still small. Promote it for a month, then keep it or drop it.",
-    "Dog": "Low sales and low growth. Discount to clear it, or stop re-ordering.",
+    "Star": "Selling well and growing. Keep in stock.",
+    "Cash cow": "Selling well, not growing. Protect the margin.",
+    "Question mark": "Growing but small. Promote it.",
+    "Dog": "Selling little. Discount it or stop re-ordering.",
 }
 
+
+BCG_LABELS = {
+    "Star": "Top sellers",
+    "Cash cow": "Steady earners",
+    "Question mark": "Rising",
+    "Dog": "Slow sellers",
+}
 
 def _D(value):
     return Decimal(str(value or 0))
 
 
 def _growth(current, previous):
-    """% change. None means 'new': it sold now but not in the previous period."""
     if previous > 0:
         return (current - previous) / previous * 100
     return None if current > 0 else Decimal("0")
+
+def _popup_data(rows):
+    """What the product popup shows, keyed by product id."""
+    data = {}
+    for r in rows:
+        p = r["product"]
+        data[str(p.pk)] = {
+            "name": r["label"],
+            "category": r["category"],
+            "group": BCG_LABELS[r["cls"]],
+            "advice": BCG_ADVICE[r["cls"]],
+            "color": BCG_COLORS[r["cls"]],
+            "sales": float(r["revenue"]),
+            "growth": None if r["growth"] is None else float(r["growth"]),
+            "margin": float(r["margin"]),
+            "stock": r["stock"],
+            "low": r["stock"] < LOW_STOCK,
+            "flag": r["flag"],
+            "url": reverse("product_history", args=[p.pk]),
+        }
+    return data
+
 
 
 def _strategy_scope(request):
@@ -5775,6 +5803,7 @@ def _build_bcg(shop, branch, days):
             "revenue": rev, "prev_revenue": prev_rev, "qty": qty,
             "profit": profit, "margin": margin,
             "rel_share": rel, "growth": g, "is_new": is_new,
+            "group": BCG_LABELS[cls],
             "stock": p.stock, "stock_value": stock_value,
             "cls": cls, "flag": flag,
         })
@@ -5787,6 +5816,7 @@ def _build_bcg(shop, branch, days):
         groups.append({
             "name": name, "rows": members, "count": len(members),
             "revenue": sum((r["revenue"] for r in members), Decimal("0")),
+            "label": BCG_LABELS[name],
             "advice": BCG_ADVICE[name], "color": BCG_COLORS[name],
         })
 
@@ -5805,10 +5835,11 @@ def _build_bcg(shop, branch, days):
                 "y": round(max(-100.0, min(300.0, g)), 1),
                 "r": round(5 + 20 * (float(r["revenue"] / top_rev) ** 0.5), 1),
                 "name": r["label"],
+                "id": r["product"].pk,
                 "rev": round(float(r["revenue"]), 2),
                 "new": r["growth"] is None,
             })
-        datasets.append({"label": name, "color": BCG_COLORS[name], "points": pts})
+        datasets.append({"label": BCG_LABELS[name], "color": BCG_COLORS[name], "points": pts})
 
     return {
         "rows": rows, "groups": groups,
@@ -5831,6 +5862,8 @@ def bcg_matrix(request):
 
     days = _strategy_days(request)
     data = _build_bcg(shop, branch, days)
+    by_name = {g["name"]: g for g in data["groups"]}
+    grid = [by_name[n] for n in ("Question mark", "Star", "Dog", "Cash cow")]
 
     return render(request, "posApp/bcg_matrix.html", {
         **data,
@@ -5840,6 +5873,8 @@ def bcg_matrix(request):
         "all_branches": Branch.objects.filter(shop=shop) if request.user.is_superuser else None,
         "selected_branch_id": branch.id if branch else None,
         "shop_name": shop.name,
+        "grid": grid,
+        "popup": _popup_data(data["rows"]),
         "branch_name": branch.name if branch else "All branches",
         "low_stock": LOW_STOCK,
     })
@@ -5941,6 +5976,7 @@ def ansoff_matrix(request):
         "penetration": penetration,
         "new_products": new_products,
         "hot_categories": hot_categories,
+        "popup": _popup_data(rows),
         "multi_branch": len(branches) > 1, "gaps": gaps,
         "cat_share": cat_share, "top_share": top_share, "dependent": top_share > 60,
         "dead": dead[:8], "dead_count": len(dead), "tied_cash": tied_cash,
